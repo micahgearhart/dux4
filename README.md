@@ -10,23 +10,106 @@ BiocInstaller::biocLite("MotifDb")
 ```
 
 ``` r
-library("DESeq2")
+#library("DESeq2")
 library("ggplot2")
-library("Homo.sapiens")
-library("genefilter")
-library("pheatmap")
-library("goseq")
-library("GenomicFeatures")
+#library("Homo.sapiens")
+#library("genefilter")
+#library("pheatmap")
+#library("goseq")
+#library("GenomicFeatures")
 library("GenomicAlignments")
+```
+
+    ## Loading required package: BiocGenerics
+    ## Loading required package: parallel
+    ## 
+    ## Attaching package: 'BiocGenerics'
+    ## 
+    ## The following objects are masked from 'package:parallel':
+    ## 
+    ##     clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    ##     clusterExport, clusterMap, parApply, parCapply, parLapply,
+    ##     parLapplyLB, parRapply, parSapply, parSapplyLB
+    ## 
+    ## The following object is masked from 'package:stats':
+    ## 
+    ##     xtabs
+    ## 
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     anyDuplicated, append, as.data.frame, as.vector, cbind,
+    ##     colnames, do.call, duplicated, eval, evalq, Filter, Find, get,
+    ##     intersect, is.unsorted, lapply, Map, mapply, match, mget,
+    ##     order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+    ##     rbind, Reduce, rep.int, rownames, sapply, setdiff, sort,
+    ##     table, tapply, union, unique, unlist, unsplit
+    ## 
+    ## Loading required package: S4Vectors
+    ## Loading required package: stats4
+    ## Creating a generic function for 'nchar' from package 'base' in package 'S4Vectors'
+    ## Loading required package: IRanges
+    ## Loading required package: GenomeInfoDb
+    ## Loading required package: GenomicRanges
+    ## Loading required package: Biostrings
+    ## Loading required package: XVector
+    ## Loading required package: Rsamtools
+
+``` r
 library("Rsamtools")
 library("rtracklayer")
 library("RColorBrewer")
 library("dplyr")
-library("exotools")
-library("BSgenome.Hsapiens.NCBI.GRCh38")
-hg38<-BSgenome.Hsapiens.NCBI.GRCh38
-library("TFBSTools")
-library("MotIV")
+```
+
+    ## 
+    ## Attaching package: 'dplyr'
+    ## 
+    ## The following objects are masked from 'package:GenomicAlignments':
+    ## 
+    ##     first, last
+    ## 
+    ## The following objects are masked from 'package:Biostrings':
+    ## 
+    ##     collapse, intersect, setdiff, setequal, union
+    ## 
+    ## The following object is masked from 'package:XVector':
+    ## 
+    ##     slice
+    ## 
+    ## The following objects are masked from 'package:GenomicRanges':
+    ## 
+    ##     intersect, setdiff, union
+    ## 
+    ## The following object is masked from 'package:GenomeInfoDb':
+    ## 
+    ##     intersect
+    ## 
+    ## The following objects are masked from 'package:IRanges':
+    ## 
+    ##     collapse, desc, intersect, setdiff, slice, union
+    ## 
+    ## The following objects are masked from 'package:S4Vectors':
+    ## 
+    ##     intersect, rename, setdiff, union
+    ## 
+    ## The following objects are masked from 'package:BiocGenerics':
+    ## 
+    ##     combine, intersect, setdiff, union
+    ## 
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     filter, lag
+    ## 
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     intersect, setdiff, setequal, union
+
+``` r
+#library("exotools")
+#library("BSgenome.Hsapiens.NCBI.GRCh38")
+#hg38<-BSgenome.Hsapiens.NCBI.GRCh38
+#library("TFBSTools")
+#library("MotIV")
 #library("biomaRt")
 ```
 
@@ -370,6 +453,43 @@ data.frame(nodox=temp[,1],plusdox=temp[,2]) %>%
    geom_violin(col=brewer.pal(3, "Dark2")[1:2]) + theme_bw()
 ```
 
+Test tornado plot
+=================
+
+``` r
+source("R/hello.R")
+#Define Data
+h3k27<-new("fileset", filename=c( "../chip/h3k27_nodox.bam", "../chip/h3k27_plusdox.bam" ))
+(h3k27<-countFileset(h3k27))
+```
+
+    ## An object of class "fileset"
+    ## Slot "filename":
+    ## [1] "../chip/h3k27_nodox.bam"   "../chip/h3k27_plusdox.bam"
+    ## 
+    ## Slot "count":
+    ## [1] 13653876 23941547
+
+``` r
+h3<-new("fileset", filename=c( "../chip/h3_nodox.bam", "../chip/h3_plusdox.bam" ))
+(h3<-countFileset(h3))
+```
+
+    ## An object of class "fileset"
+    ## Slot "filename":
+    ## [1] "../chip/h3_nodox.bam"   "../chip/h3_plusdox.bam"
+    ## 
+    ## Slot "count":
+    ## [1] 374583776 386383334
+
+``` r
+dux4<-import("siho_dux4_summits_hg38.bed")
+
+tornado(dux4[1:100],dataset=h3k27,pad=5000,ord=2,window=5)
+```
+
+![](README_files/figure-markdown_github/tornado-1.png)
+
 ``` r
 #H3
 (fls <- list.files("data", pattern=glob2rx("h3_*.bam$"),full=TRUE))
@@ -412,9 +532,28 @@ sessionInfo()
     ## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
     ## 
     ## attached base packages:
-    ## [1] stats     graphics  grDevices utils     datasets  methods   base     
+    ## [1] stats4    parallel  stats     graphics  grDevices utils     datasets 
+    ## [8] methods   base     
+    ## 
+    ## other attached packages:
+    ##  [1] dplyr_0.4.3             RColorBrewer_1.1-2     
+    ##  [3] rtracklayer_1.28.10     GenomicAlignments_1.4.2
+    ##  [5] Rsamtools_1.20.5        Biostrings_2.36.4      
+    ##  [7] XVector_0.8.0           GenomicRanges_1.20.8   
+    ##  [9] GenomeInfoDb_1.4.3      IRanges_2.2.9          
+    ## [11] S4Vectors_0.6.6         BiocGenerics_0.14.0    
+    ## [13] ggplot2_1.0.1          
     ## 
     ## loaded via a namespace (and not attached):
-    ## [1] formatR_1.0     tools_3.2.2     htmltools_0.2.6 yaml_2.1.13    
-    ## [5] rmarkdown_0.7   knitr_1.9       stringr_0.6.2   digest_0.6.4   
-    ## [9] evaluate_0.5.5
+    ##  [1] Rcpp_0.12.1          formatR_1.2.1        futile.logger_1.4.1 
+    ##  [4] plyr_1.8.3           bitops_1.0-6         futile.options_1.0.0
+    ##  [7] tools_3.2.2          zlibbioc_1.14.0      digest_0.6.8        
+    ## [10] evaluate_0.8         gtable_0.1.2         DBI_0.3.1           
+    ## [13] yaml_2.1.13          proto_0.3-10         stringr_1.0.0       
+    ## [16] knitr_1.11           grid_3.2.2           R6_2.1.1            
+    ## [19] XML_3.98-1.3         BiocParallel_1.2.22  rmarkdown_0.8.1     
+    ## [22] reshape2_1.4.1       lambda.r_1.1.7       magrittr_1.5        
+    ## [25] scales_0.3.0         htmltools_0.2.6      MASS_7.3-44         
+    ## [28] assertthat_0.1       colorspace_1.2-6     labeling_0.3        
+    ## [31] stringi_0.5-5        lazyeval_0.1.10      RCurl_1.95-4.7      
+    ## [34] munsell_0.4.2
