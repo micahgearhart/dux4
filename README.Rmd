@@ -1,7 +1,12 @@
 ---
 title: "Dux4 Overexpression"
-output: html_document
+author: "micah gearhart"
+date: "10/11/2015"
+output:
+  md_document:
+    variant: markdown_github
 ---
+
 
 ```{r installations, eval=F}
 BiocInstaller::biocLite("Homo.sapiens")
@@ -12,34 +17,37 @@ BiocInstaller::biocLite("MotIV")
 BiocInstaller::biocLite("motifRG")
 BiocInstaller::biocLite("BiocParallel")
 BiocInstaller::biocLite("MotifDb")
-
-
 ```
 
-```{r libraries}
-library("DESeq2")
+```{r libraries, eval=T}
+#library("DESeq2")
 library("ggplot2")
-library("Homo.sapiens")
-library("genefilter")
-library("pheatmap")
-library("goseq")
-library("GenomicFeatures")
+#library("Homo.sapiens")
+#library("genefilter")
+#library("pheatmap")
+#library("goseq")
+#library("GenomicFeatures")
+library("BiocParallel")
 library("GenomicAlignments")
 library("Rsamtools")
 library("rtracklayer")
 library("RColorBrewer")
 library("dplyr")
-library("exotools")
-library("BSgenome.Hsapiens.NCBI.GRCh38")
-hg38<-BSgenome.Hsapiens.NCBI.GRCh38
-library("TFBSTools")
-library("MotIV")
+library("tidyr")
+#library("exotools")
+#library("BSgenome.Hsapiens.NCBI.GRCh38")
+#hg38<-BSgenome.Hsapiens.NCBI.GRCh38
+library(BSgenome.Hsapiens.UCSC.hg19)
+hg19<-BSgenome.Hsapiens.UCSC.hg19
+#library("TFBSTools")
+#library("MotIV")
 #library("biomaRt")
+source("R/hello.R")
 
 ```
 
 #use biomart to build a GRanges Object from GTF file
-```{r}
+```{r eval=F}
 ensembl_81 = useMart(biomart="ENSEMBL_MART_ENSEMBL", host="www.ensembl.org", path="/biomart/martservice",dataset="hsapiens_gene_ensembl")
 txdb<-makeTxDbFromBiomart(biomart="ENSEMBL_MART_ENSEMBL",host="www.ensembl.org",dataset="hsapiens_gene_ensembl")
 ens81<-exonsBy(txdb,by="gene")
@@ -50,7 +58,7 @@ txdb <- makeTxDbFromBiomart(host = "www.ensembl.org", path="/biomart/martservice
 ```
 
 # txDb doesn't work?
-```{r}
+```{r eval=F}
 #download.file("ftp://ftp.ensembl.org/pub/release-81/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz",destfile="Homo_sapiens.GRCh38.cdna.all.fa.gz")
 
 download.file("ftp://ftp.ensembl.org/pub/release-81/gtf/homo_sapiens/Homo_sapiens.GRCh38.81.gtf.gz",destfile="Homo_sapiens.GRCh38.81.gtf.gz")
@@ -62,7 +70,7 @@ ex<-exonsBy(tx,by="gene")
 ```
 
 #EDA with STAR counts
-```{r}
+```{r eval=F}
 load("inst/extdata/LHCNM2iDUX4HTF.rdata")
 colnames(e)<-sapply(strsplit(colnames(e),"_"),function(x) x[1])
 cd<-as.data.frame(colnames(e))
@@ -75,7 +83,7 @@ plotMA(cds,ylim=c(-8,8))
 ```
 
 #Annotation Hub vs Biomart - I usually use AnnotationDbi for extracting gene symbol but it is not using the latest HGNC data and is improperly assigning symbols to DEFB genes.
-```{r}
+```{r eval=F}
 #AnnotationDbi Version
 AnnotationDbi::select(Homo.sapiens,keys=c("ENSG00000176797","ENSG00000177243"),keytype="ENSEMBL",columns="SYMBOL")
 
@@ -97,7 +105,7 @@ gene_lengths2<- gene_lengths %>%  group_by(ensembl_gene_id) %>%  summarize(genel
 
 
 # Heatmap of genes that have high variance.
-```{r}
+```{r eval=F}
 rld <- rlog(cds, blind=FALSE)
 hist(res$pvalue[res$baseMean > 1], breaks=0:20/20, col="grey50", border="white")
 
@@ -119,7 +127,7 @@ pheatmap(mat, annotation_col=df,labels_row=dr[idx,"SYMBOL"])
 
 
 # Output a Results Table
-```{r}
+```{r eval=F}
 res<-results(cds)
 res<-as.data.frame(res)
 res<-res[!is.na(res$padj),]
@@ -140,7 +148,7 @@ res[grep("DEFB103",res$SYMBOL),]
 
 
 #GOSTATS ERGH - BIOMART - the gene lengths!!!
-```{r}
+```{r eval=F}
 
 gocat<-select(Homo.sapiens,keys=rownames(res),keytype="ENSEMBL",columns="GOID")
 
@@ -160,7 +168,7 @@ gocat.list[["ENSG00000183337"]]
 
 10-6-15
 # Use summarizeOverlaps instead of STAR counts 
-```{r}
+```{r eval=F}
 load("dux4_genehits.rdata") #All mapping quality
 load("inst/extdata/LHCNM2iDUX4_q4.rdata") #maq > 4
 colData(exq4)
@@ -177,7 +185,7 @@ plotMA(cds,ylim=c(-8,8))
 ```
 
 # Use the rlog to find some high variance genes that aren't likely do to noise.
-```{r}
+```{r eval=F}
 rld <- rlog(cds, blind=FALSE)
 hist(res$pvalue[res$baseMean > 1], breaks=0:20/20, col="grey50", border="white")
 
@@ -203,7 +211,7 @@ idx<-match(rownames(mat),dr$ENSEMBL)
 pheatmap(mat, annotation_col=df,labels_row=dr[idx,"SYMBOL"])
 ```
 #Genome Distribution
-```{r}
+```{r eval=F}
 (resGR <- results(cds, lfcThreshold=1, format="GRanges"))
 resGR<-resGR[!is.na(resGR$log2FoldChange)]
 resGR<-resGR[abs(resGR$log2FoldChange) > 2]
@@ -221,7 +229,7 @@ ggplot(hg38IdeogramCyto) + layout_karyogram(cytoband = FALSE)  + theme_bw() +
 
 
 #GOseq for enriched Terms
-```{r}
+```{r eval=F}
 res<-results(cds)
 res<-as.data.frame(res)
 res<-res[!is.na(res$padj),]
@@ -273,7 +281,7 @@ listGO("GO:0045596")
 ```
 
 #ChIP !!!
-```{r}
+```{r eval=F}
 detectCores()
 register(MulticoreParam(workers=detectCores()))
 
@@ -323,7 +331,7 @@ gr<-exotools::extractDNAfromGR(gr+10,hg38)
 ```
 
 # liftover SiHo's DUX4 peaklist
-```{r}
+```{r eval=F}
 download.file("http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz",destfile="hg19ToHg38.over.chain.gz")
 R.utils::gunzip("hg19ToHg38.over.chain.gz")
 hg19ToHg38<-rtracklayer::import.chain("hg19ToHg38.over.chain")
@@ -366,7 +374,55 @@ data.frame(nodox=temp[,1],plusdox=temp[,2]) %>%
    geom_violin(col=brewer.pal(3, "Dark2")[1:2]) + theme_bw()
 ```
 
-```{r}
+#Test tornado plot
+```{r tornado,eval=F}
+#Define Data
+h3k27<-new("fileset", filename=c( "../chip/h3k27_nodox.bam", "../chip/h3k27_plusdox.bam" ))
+(h3k27<-countFileset(h3k27))
+
+h3<-new("fileset", filename=c( "../chip/h3_nodox.bam", "../chip/h3_plusdox.bam" ))
+(h3<-countFileset(h3))
+
+dux4<-import("siho_dux4_summits_hg38.bed")
+
+tornado(dux4,dataset=h3k27,pad=5000,ord=2,window=5)
+
+```
+
+```{r tornado_h19,eval=F}
+
+#DUX4.R1_trimmed.fastq.hg19.bam
+#h3k27_nodox.R1_trimmed.fastq.hg19.bam
+#h3k27_plusdox.R1_trimmed.fastq.hg19.bam
+#h3_nodox.R1_trimmed.fastq.hg19.bam
+#h3_plusdox.R1_trimmed.fastq.hg19.bam
+
+chip_data <-  new("fileset",filename=c("../chip/DUX4.R1_trimmed.fastq.hg19.bam",
+              "../chip/h3_nodox.R1_trimmed.fastq.hg19.bam",
+              "../chip/h3_plusdox.R1_trimmed.fastq.hg19.bam",
+              "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam",
+              "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"))
+(chip_data<-countFileset(chip_data))
+              
+#import peaklist
+dux4<-import("DUX4Dox.bed")
+dux4[width(dux4)> 10000] # centromeric and telomeric junk
+length(dux4<-dux4[width(dux4) < 5000])
+
+#center peaks
+dux4_summits<-GRanges(seqnames(dux4),IRanges(start=start(dux4)+round(width(dux4)/2),
+                                             width=1), name=dux4$name,score=dux4$score)
+
+tornado(dux4_summits,dataset=chip_data,pad=5000,ord=2,window=5)
+```
+
+```{r tornado2,eval=F}
+k27plus<-import("../chip/k27me3_plusdox_pe5_summits.bed")
+k27plus<-k27plus[with(k27plus,order(-score))]
+tornado(k27plus,dataset=chip_data,pad=5000,ord=0,window=5)
+```
+
+```{r eval=F}
 #H3
 (fls <- list.files("data", pattern=glob2rx("h3_*.bam$"),full=TRUE))
 bamlst <- BamFileList(fls,yieldSize = 1e5)
@@ -391,3 +447,202 @@ plot(temp,pch=16,cex=0.5)
 abline(0,1,col="red")
 ```
 
+```{r count,eval=F}
+
+length(k27pd<-import("../chip/k27me3_plusdox_pe5_peaks.bed"))
+length(k27nd<-import("../chip/k27me3_nodox_pe5_peaks.bed"))
+
+length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
+length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
+
+length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
+
+#set fixed width at 4k
+k27r_4k<-center(k27r)+2000
+summary(width(k27r_4k))
+
+#export(k27r,"k27r.bed")
+
+#count reads in H3k27 data
+(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+(fls2 <- list.files("../chip", pattern=glob2rx("DUX*hg19.bam$"),full=TRUE))
+bamlst <- BamFileList(c(fls,fls2),yieldSize = 1e5)
+detectCores()
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(h3k27_counts <- summarizeOverlaps(k27r_4k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+apply(assays(h3k27_counts)$counts,2,sum)
+save(h3k27_counts,file="k27r_4k_DUX4_counts.rdata")
+```
+
+
+```{r countDUX_sites,eval=F}
+length(dux4dox<-import("../chip/DUX4dox_pe5_summits.bed"))
+dux4dox_1k<-dux4dox+500
+dux4dox_4k<-dux4dox+2000
+
+(fls <- list.files("../chip", pattern=glob2rx("*hg19.bam$"),full=TRUE))
+#(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+#(fls2 <- list.files("../chip", pattern=glob2rx("DUX*hg19.bam$"),full=TRUE))
+bamlst <- BamFileList(fls,yieldSize = 1e5)
+detectCores()
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(dux4dox_1k_counts <- summarizeOverlaps(dux4dox_1k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+system.time(dux4dox_4k_counts <- summarizeOverlaps(dux4dox_4k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+
+apply(assays(dux4dox_1k_counts)$counts,2,sum)
+apply(assays(dux4dox_4k_counts)$counts,2,sum)
+save(dux4dox_1k_counts,dux4dox_4k_counts,file="DUX4_counts.rdata")
+```
+
+
+```{r DNAse,eval=T}
+load("DUX4_counts.rdata")
+
+#hg19blacklist
+hg19bl<-import("hg19_blacklist.bed")
+
+dux4dox_1k<-rowRanges(dux4dox_1k_counts)
+(n<-apply(assays(dux4dox_1k_counts)$counts,2,sum))
+
+x<-which(grepl("input",names(n)))
+temp<-apply(assays(dux4dox_1k_counts)$counts[,x],1,mean)
+dux4dox_1k$input<-log2(temp*10e6/sum(temp)+1)
+
+x<-which(grepl("h3k27_nodox",names(n)))
+dux4dox_1k$k27nd<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
+x<-which(grepl("h3k27_plusdox",names(n)))
+dux4dox_1k$k27pd<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
+x<-which(grepl("DUX4",names(n)))
+dux4dox_1k$dux4<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
+#quantro::matdensity(as.matrix(mcols(dux4dox_1k)[,3:6]))
+#abline(v=9)
+#clean up
+length(dux4dox_1k<-keepSeqlevels(dux4dox_1k,seqlevels(hg19)[1:24])) #remove small contigs
+length(dux4dox_1k<-dux4dox_1k[!dux4dox_1k %over% hg19bl])  #remove black listed regions
+length(dux4dox_1k<-dux4dox_1k[dux4dox_1k$input < 9])  # remove regions with excessive reads in input 
+
+#Load DNAse data
+
+dnase<-read.table("ENCFF001BVR.bed",stringsAsFactors=FALSE)
+dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnase$V7,score2=dnase$V8)
+
+dux4dox_1k$dnase_overlap <- dux4dox_1k %over% dnase
+```
+
+```{r violin_plots,eval=T}
+
+as.data.frame(mcols(dux4dox_1k)[,c(4,5,7)]) %>% 
+  gather(dox,log2cpm,k27nd:k27pd) %>%
+  ggplot(aes(x=dox,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
+   xlab("Condition") + ylab("Log2 Counts Per Million") + 
+   geom_violin(aes(fill=dox)) + 
+  stat_summary(fun.y=median.quartile,geom='point') +
+   scale_fill_manual(values=brewer.pal(3, "Dark2")[1:2]) +
+   theme_bw()
+
+#now facet by dnase_overlap
+as.data.frame(mcols(dux4dox_1k)[,c(4,5,7)]) %>% 
+  gather(dox,log2cpm,k27nd:k27pd) %>%
+  ggplot(aes(x=dox,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
+   xlab("Condition") + ylab("Log2 Counts Per Million") + 
+   geom_violin(aes(fill=dox)) + 
+   facet_grid(. ~ dnase_overlap,scales="free_y",labeller=label_wrap) +
+    stat_summary(fun.y=median.quartile,geom='point') +
+   scale_fill_manual(values=brewer.pal(3, "Dark2")[1:2]) +
+   theme_bw()
+```
+
+
+
+#Tornado's
+```{r count_filesets,eval=F}
+h3k27<-new("fileset", filename=c( "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam",
+                                  "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3K27ac -Dox","H3K27ac +Dox"))
+(h3k27<-countFileset(h3k27))
+
+DUX4<-new("fileset",filename="../chip/DUX4.R1_trimmed.fastq.hg19.bam",labels="DUX4")
+(DUX4<-countFileset(DUX4))
+
+H3<-new("fileset", filename=c( "../chip/h3_nodox.R1_trimmed.fastq.hg19.bam",
+                                  "../chip//h3_plusdox.R1_trimmed.fastq.hg19.bam",
+                               "../chip/DUX4.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3 -Dox","H3 +Dox", "DUX4"))
+(H3<-countFileset(H3))
+
+save(h3k27,H3,DUX4,file="filesets.rdata")
+```
+
+
+
+```{r Tornado_Plots,eval=T}
+load("filesets.rdata")
+
+length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE])
+#length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE & dux4dox_1k$score > 35])
+#temp<-sample(temp,500)
+temp<-temp[with(temp,order(-score))]
+benchplot(tornado(temp,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+```
+
+```{r Tornado_Plots_2,eval=T}
+benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+```
+
+```{r Tornado_Plots_3,eval=T}
+benchplot(twister(temp,dataset=H3,pad = 3500,ord=0,window=1,color="darkgreen"))
+```
+
+
+```{r Tornado_Plots_4,eval=T}
+length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
+#length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE & dux4dox_1k$score > 35])
+#temp<-sample(temp,500)
+temp2<-temp2[with(temp2,order(-score))]
+benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+```
+
+```{r Tornado_Plots_5,eval=T}
+benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+```
+
+```{r Tornado_Plots_6,eval=T}
+benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="blue"))
+```
+ 
+```{r evaluate_counts,eval=F}
+load("h3k27_counts.rdata")
+(n<-apply(assays(h3k27_counts)$counts,2,sum))
+length(gr<-rowRanges(h3k27_counts))
+gr$k27nd<-log2(assays(h3k27_counts)$counts[,1]*10e6/n[1] + 1)
+gr$k27pd<-log2(assays(h3k27_counts)$counts[,2]*10e6/n[2] + 1)
+head(gr)
+plot(gr$k27pd,gr$k27nd,cex=0.2,pch=16)
+#x<-as.matrix(mcols(gr))
+#matdensity(x)
+
+#look at subset
+length(gr_subset<-gr[gr$k27nd > 8 | gr$k27pd > 8])
+gr_subset$which_label<-wls(gr_subset)
+plot(gr_subset$k27pd,gr_subset$k27nd,cex=0.2,pch=16)
+#x<-as.matrix(mcols(gr_subset[,1:2]))
+#matdensity(x)
+
+gr_subset$ratio <- gr_subset$k27pd - gr_subset$k27nd
+gr_subset<-gr_subset[with(gr_subset,order(-ratio))]
+head(gr_subset)
+
+gr_subset[gr_subset %over% GRanges(seqnames="chr19",IRanges(start=58178303,end=58192520))]
+
+#chr11:17,728,386-17,756,401
+gr_subset[gr_subset %over% GRanges(seqnames="chr11",IRanges(start=17728386,end=17756401))]
+
+#length(gr_subset_subset<-gr_subset[abs(gr_subset$ratio)>2])
+length(gr_subset_subset<-gr_subset)
+
+length(gr_subset_subset<-gr_subset_subset[width(gr_subset_subset)<5000])
+```
+
+```{r sessionInfo,eval=T}
+sessionInfo()
+```

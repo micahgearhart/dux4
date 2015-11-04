@@ -17,6 +17,7 @@ library("ggplot2")
 #library("pheatmap")
 #library("goseq")
 #library("GenomicFeatures")
+library("BiocParallel")
 library("GenomicAlignments")
 ```
 
@@ -105,12 +106,31 @@ library("dplyr")
     ##     intersect, setdiff, setequal, union
 
 ``` r
+library("tidyr")
+```
+
+    ## 
+    ## Attaching package: 'tidyr'
+    ## 
+    ## The following object is masked from 'package:IRanges':
+    ## 
+    ##     expand
+
+``` r
 #library("exotools")
 #library("BSgenome.Hsapiens.NCBI.GRCh38")
 #hg38<-BSgenome.Hsapiens.NCBI.GRCh38
+library(BSgenome.Hsapiens.UCSC.hg19)
+```
+
+    ## Loading required package: BSgenome
+
+``` r
+hg19<-BSgenome.Hsapiens.UCSC.hg19
 #library("TFBSTools")
 #library("MotIV")
 #library("biomaRt")
+source("R/hello.R")
 ```
 
 use biomart to build a GRanges Object from GTF file
@@ -457,38 +477,49 @@ Test tornado plot
 =================
 
 ``` r
-source("R/hello.R")
 #Define Data
 h3k27<-new("fileset", filename=c( "../chip/h3k27_nodox.bam", "../chip/h3k27_plusdox.bam" ))
 (h3k27<-countFileset(h3k27))
-```
 
-    ## An object of class "fileset"
-    ## Slot "filename":
-    ## [1] "../chip/h3k27_nodox.bam"   "../chip/h3k27_plusdox.bam"
-    ## 
-    ## Slot "count":
-    ## [1] 13653876 23941547
-
-``` r
 h3<-new("fileset", filename=c( "../chip/h3_nodox.bam", "../chip/h3_plusdox.bam" ))
 (h3<-countFileset(h3))
-```
 
-    ## An object of class "fileset"
-    ## Slot "filename":
-    ## [1] "../chip/h3_nodox.bam"   "../chip/h3_plusdox.bam"
-    ## 
-    ## Slot "count":
-    ## [1] 374583776 386383334
-
-``` r
 dux4<-import("siho_dux4_summits_hg38.bed")
 
-tornado(dux4[1:100],dataset=h3k27,pad=5000,ord=2,window=5)
+tornado(dux4,dataset=h3k27,pad=5000,ord=2,window=5)
 ```
 
-![](README_files/figure-markdown_github/tornado-1.png)
+``` r
+#DUX4.R1_trimmed.fastq.hg19.bam
+#h3k27_nodox.R1_trimmed.fastq.hg19.bam
+#h3k27_plusdox.R1_trimmed.fastq.hg19.bam
+#h3_nodox.R1_trimmed.fastq.hg19.bam
+#h3_plusdox.R1_trimmed.fastq.hg19.bam
+
+chip_data <-  new("fileset",filename=c("../chip/DUX4.R1_trimmed.fastq.hg19.bam",
+              "../chip/h3_nodox.R1_trimmed.fastq.hg19.bam",
+              "../chip/h3_plusdox.R1_trimmed.fastq.hg19.bam",
+              "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam",
+              "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"))
+(chip_data<-countFileset(chip_data))
+              
+#import peaklist
+dux4<-import("DUX4Dox.bed")
+dux4[width(dux4)> 10000] # centromeric and telomeric junk
+length(dux4<-dux4[width(dux4) < 5000])
+
+#center peaks
+dux4_summits<-GRanges(seqnames(dux4),IRanges(start=start(dux4)+round(width(dux4)/2),
+                                             width=1), name=dux4$name,score=dux4$score)
+
+tornado(dux4_summits,dataset=chip_data,pad=5000,ord=2,window=5)
+```
+
+``` r
+k27plus<-import("../chip/k27me3_plusdox_pe5_summits.bed")
+k27plus<-k27plus[with(k27plus,order(-score))]
+tornado(k27plus,dataset=chip_data,pad=5000,ord=0,window=5)
+```
 
 ``` r
 #H3
@@ -516,6 +547,296 @@ abline(0,1,col="red")
 ```
 
 ``` r
+length(k27pd<-import("../chip/k27me3_plusdox_pe5_peaks.bed"))
+length(k27nd<-import("../chip/k27me3_nodox_pe5_peaks.bed"))
+
+length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
+length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
+
+length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
+
+#set fixed width at 4k
+k27r_4k<-center(k27r)+2000
+summary(width(k27r_4k))
+
+#export(k27r,"k27r.bed")
+
+#count reads in H3k27 data
+(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+(fls2 <- list.files("../chip", pattern=glob2rx("DUX*hg19.bam$"),full=TRUE))
+bamlst <- BamFileList(c(fls,fls2),yieldSize = 1e5)
+detectCores()
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(h3k27_counts <- summarizeOverlaps(k27r_4k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+apply(assays(h3k27_counts)$counts,2,sum)
+save(h3k27_counts,file="k27r_4k_DUX4_counts.rdata")
+```
+
+``` r
+length(dux4dox<-import("../chip/DUX4dox_pe5_summits.bed"))
+dux4dox_1k<-dux4dox+500
+dux4dox_4k<-dux4dox+2000
+
+(fls <- list.files("../chip", pattern=glob2rx("*hg19.bam$"),full=TRUE))
+#(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+#(fls2 <- list.files("../chip", pattern=glob2rx("DUX*hg19.bam$"),full=TRUE))
+bamlst <- BamFileList(fls,yieldSize = 1e5)
+detectCores()
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(dux4dox_1k_counts <- summarizeOverlaps(dux4dox_1k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+system.time(dux4dox_4k_counts <- summarizeOverlaps(dux4dox_4k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+
+apply(assays(dux4dox_1k_counts)$counts,2,sum)
+apply(assays(dux4dox_4k_counts)$counts,2,sum)
+save(dux4dox_1k_counts,dux4dox_4k_counts,file="DUX4_counts.rdata")
+```
+
+``` r
+load("DUX4_counts.rdata")
+
+#hg19blacklist
+hg19bl<-import("hg19_blacklist.bed")
+
+dux4dox_1k<-rowRanges(dux4dox_1k_counts)
+(n<-apply(assays(dux4dox_1k_counts)$counts,2,sum))
+```
+
+    ##          DUX4.R1_trimmed.fastq.hg19.bam 
+    ##                                 3153598 
+    ##   h3k27_nodox.R1_trimmed.fastq.hg19.bam 
+    ##                                  580689 
+    ## h3k27_plusdox.R1_trimmed.fastq.hg19.bam 
+    ##                                 1020129 
+    ##      h3_nodox.R1_trimmed.fastq.hg19.bam 
+    ##                                 4001829 
+    ##    h3_plusdox.R1_trimmed.fastq.hg19.bam 
+    ##                                 3749309 
+    ##   input_nodox.R1_trimmed.fastq.hg19.bam 
+    ##                                  487774 
+    ## input_plusdox.R1_trimmed.fastq.hg19.bam 
+    ##                                  445714
+
+``` r
+x<-which(grepl("input",names(n)))
+temp<-apply(assays(dux4dox_1k_counts)$counts[,x],1,mean)
+dux4dox_1k$input<-log2(temp*10e6/sum(temp)+1)
+
+x<-which(grepl("h3k27_nodox",names(n)))
+dux4dox_1k$k27nd<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
+x<-which(grepl("h3k27_plusdox",names(n)))
+dux4dox_1k$k27pd<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
+x<-which(grepl("DUX4",names(n)))
+dux4dox_1k$dux4<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
+#quantro::matdensity(as.matrix(mcols(dux4dox_1k)[,3:6]))
+#abline(v=9)
+#clean up
+length(dux4dox_1k<-keepSeqlevels(dux4dox_1k,seqlevels(hg19)[1:24])) #remove small contigs
+```
+
+    ## [1] 31570
+
+``` r
+length(dux4dox_1k<-dux4dox_1k[!dux4dox_1k %over% hg19bl])  #remove black listed regions
+```
+
+    ## [1] 31545
+
+``` r
+length(dux4dox_1k<-dux4dox_1k[dux4dox_1k$input < 9])  # remove regions with excessive reads in input 
+```
+
+    ## [1] 30843
+
+``` r
+#Load DNAse data
+
+dnase<-read.table("ENCFF001BVR.bed",stringsAsFactors=FALSE)
+dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnase$V7,score2=dnase$V8)
+
+dux4dox_1k$dnase_overlap <- dux4dox_1k %over% dnase
+```
+
+``` r
+as.data.frame(mcols(dux4dox_1k)[,c(4,5,7)]) %>% 
+  gather(dox,log2cpm,k27nd:k27pd) %>%
+  ggplot(aes(x=dox,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
+   xlab("Condition") + ylab("Log2 Counts Per Million") + 
+   geom_violin(aes(fill=dox)) + 
+  stat_summary(fun.y=median.quartile,geom='point') +
+   scale_fill_manual(values=brewer.pal(3, "Dark2")[1:2]) +
+   theme_bw()
+```
+
+![](README_files/figure-markdown_github/violin_plots-1.png)
+
+``` r
+#now facet by dnase_overlap
+as.data.frame(mcols(dux4dox_1k)[,c(4,5,7)]) %>% 
+  gather(dox,log2cpm,k27nd:k27pd) %>%
+  ggplot(aes(x=dox,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
+   xlab("Condition") + ylab("Log2 Counts Per Million") + 
+   geom_violin(aes(fill=dox)) + 
+   facet_grid(. ~ dnase_overlap,scales="free_y",labeller=label_wrap) +
+    stat_summary(fun.y=median.quartile,geom='point') +
+   scale_fill_manual(values=brewer.pal(3, "Dark2")[1:2]) +
+   theme_bw()
+```
+
+![](README_files/figure-markdown_github/violin_plots-2.png)
+
+Tornado's
+=========
+
+``` r
+h3k27<-new("fileset", filename=c( "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam",
+                                  "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3K27ac -Dox","H3K27ac +Dox"))
+(h3k27<-countFileset(h3k27))
+
+DUX4<-new("fileset",filename="../chip/DUX4.R1_trimmed.fastq.hg19.bam",labels="DUX4")
+(DUX4<-countFileset(DUX4))
+
+H3<-new("fileset", filename=c( "../chip/h3_nodox.R1_trimmed.fastq.hg19.bam",
+                                  "../chip//h3_plusdox.R1_trimmed.fastq.hg19.bam",
+                               "../chip/DUX4.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3 -Dox","H3 +Dox", "DUX4"))
+(H3<-countFileset(H3))
+
+save(h3k27,H3,DUX4,file="filesets.rdata")
+```
+
+``` r
+load("filesets.rdata")
+
+length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE])
+```
+
+    ## [1] 12846
+
+``` r
+#length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE & dux4dox_1k$score > 35])
+#temp<-sample(temp,500)
+temp<-temp[with(temp,order(-score))]
+benchplot(tornado(temp,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+```
+
+![](README_files/figure-markdown_github/Tornado_Plots-1.png)
+
+    ##        step user.self sys.self elapsed
+    ## 1 construct   431.839    9.164 492.241
+    ## 2     build    74.100    2.259  76.402
+    ## 3    render    12.423    0.001  12.429
+    ## 4      draw    67.503    0.004  67.535
+    ## 5     TOTAL   585.865   11.428 648.607
+
+``` r
+benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+```
+
+![](README_files/figure-markdown_github/Tornado_Plots_2-1.png)
+
+    ##        step user.self sys.self elapsed
+    ## 1 construct   661.299    7.559 704.906
+    ## 2     build   130.514    5.130 135.698
+    ## 3    render    17.937    0.000  17.945
+    ## 4      draw   105.792    0.000 105.832
+    ## 5     TOTAL   915.542   12.689 964.381
+
+``` r
+benchplot(twister(temp,dataset=H3,pad = 3500,ord=0,window=1,color="darkgreen"))
+```
+
+![](README_files/figure-markdown_github/Tornado_Plots_3-1.png)
+
+    ##        step user.self sys.self  elapsed
+    ## 1 construct  1490.066    22.92 2348.449
+    ## 2     build     0.107     0.00    0.106
+    ## 3    render     0.173     0.00    0.173
+    ## 4      draw     0.108     0.00    0.109
+    ## 5     TOTAL  1490.454    22.92 2348.837
+
+``` r
+length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
+```
+
+    ## [1] 17997
+
+``` r
+#length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE & dux4dox_1k$score > 35])
+#temp<-sample(temp,500)
+temp2<-temp2[with(temp2,order(-score))]
+benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+```
+
+![](README_files/figure-markdown_github/Tornado_Plots_4-1.png)
+
+    ##        step user.self sys.self elapsed
+    ## 1 construct   493.164     1.86 537.447
+    ## 2     build    98.339     0.00  98.375
+    ## 3    render    15.450     0.00  15.456
+    ## 4      draw    87.485     0.00  87.516
+    ## 5     TOTAL   694.438     1.86 738.794
+
+``` r
+benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+```
+
+![](README_files/figure-markdown_github/Tornado_Plots_5-1.png)
+
+    ##        step user.self sys.self elapsed
+    ## 1 construct   556.705    1.215 577.919
+    ## 2     build   112.553    0.000 112.609
+    ## 3    render    15.984    0.000  15.991
+    ## 4      draw    92.401    0.003  92.445
+    ## 5     TOTAL   777.643    1.218 798.964
+
+``` r
+benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="blue"))
+```
+
+![](README_files/figure-markdown_github/Tornado_Plots_6-1.png)
+
+    ##        step user.self sys.self  elapsed
+    ## 1 construct  2015.515   19.035 2619.870
+    ## 2     build     0.042    0.000    0.042
+    ## 3    render     0.093    0.000    0.092
+    ## 4      draw     0.056    0.000    0.057
+    ## 5     TOTAL  2015.706   19.035 2620.061
+
+``` r
+load("h3k27_counts.rdata")
+(n<-apply(assays(h3k27_counts)$counts,2,sum))
+length(gr<-rowRanges(h3k27_counts))
+gr$k27nd<-log2(assays(h3k27_counts)$counts[,1]*10e6/n[1] + 1)
+gr$k27pd<-log2(assays(h3k27_counts)$counts[,2]*10e6/n[2] + 1)
+head(gr)
+plot(gr$k27pd,gr$k27nd,cex=0.2,pch=16)
+#x<-as.matrix(mcols(gr))
+#matdensity(x)
+
+#look at subset
+length(gr_subset<-gr[gr$k27nd > 8 | gr$k27pd > 8])
+gr_subset$which_label<-wls(gr_subset)
+plot(gr_subset$k27pd,gr_subset$k27nd,cex=0.2,pch=16)
+#x<-as.matrix(mcols(gr_subset[,1:2]))
+#matdensity(x)
+
+gr_subset$ratio <- gr_subset$k27pd - gr_subset$k27nd
+gr_subset<-gr_subset[with(gr_subset,order(-ratio))]
+head(gr_subset)
+
+gr_subset[gr_subset %over% GRanges(seqnames="chr19",IRanges(start=58178303,end=58192520))]
+
+#chr11:17,728,386-17,756,401
+gr_subset[gr_subset %over% GRanges(seqnames="chr11",IRanges(start=17728386,end=17756401))]
+
+#length(gr_subset_subset<-gr_subset[abs(gr_subset$ratio)>2])
+length(gr_subset_subset<-gr_subset)
+
+length(gr_subset_subset<-gr_subset_subset[width(gr_subset_subset)<5000])
+```
+
+``` r
 sessionInfo()
 ```
 
@@ -536,24 +857,25 @@ sessionInfo()
     ## [8] methods   base     
     ## 
     ## other attached packages:
-    ##  [1] dplyr_0.4.3             RColorBrewer_1.1-2     
-    ##  [3] rtracklayer_1.28.10     GenomicAlignments_1.4.2
-    ##  [5] Rsamtools_1.20.5        Biostrings_2.36.4      
-    ##  [7] XVector_0.8.0           GenomicRanges_1.20.8   
-    ##  [9] GenomeInfoDb_1.4.3      IRanges_2.2.9          
-    ## [11] S4Vectors_0.6.6         BiocGenerics_0.14.0    
-    ## [13] ggplot2_1.0.1          
+    ##  [1] BSgenome.Hsapiens.UCSC.hg19_1.4.0 BSgenome_1.36.3                  
+    ##  [3] tidyr_0.3.1                       dplyr_0.4.3                      
+    ##  [5] RColorBrewer_1.1-2                rtracklayer_1.28.10              
+    ##  [7] GenomicAlignments_1.4.2           Rsamtools_1.20.5                 
+    ##  [9] Biostrings_2.36.4                 XVector_0.8.0                    
+    ## [11] GenomicRanges_1.20.8              GenomeInfoDb_1.4.3               
+    ## [13] IRanges_2.2.9                     S4Vectors_0.6.6                  
+    ## [15] BiocGenerics_0.14.0               BiocParallel_1.2.22              
+    ## [17] ggplot2_1.0.1                    
     ## 
     ## loaded via a namespace (and not attached):
     ##  [1] Rcpp_0.12.1          formatR_1.2.1        futile.logger_1.4.1 
-    ##  [4] plyr_1.8.3           bitops_1.0-6         futile.options_1.0.0
+    ##  [4] plyr_1.8.3           futile.options_1.0.0 bitops_1.0-6        
     ##  [7] tools_3.2.2          zlibbioc_1.14.0      digest_0.6.8        
     ## [10] evaluate_0.8         gtable_0.1.2         DBI_0.3.1           
     ## [13] yaml_2.1.13          proto_0.3-10         stringr_1.0.0       
     ## [16] knitr_1.11           grid_3.2.2           R6_2.1.1            
-    ## [19] XML_3.98-1.3         BiocParallel_1.2.22  rmarkdown_0.8.1     
-    ## [22] reshape2_1.4.1       lambda.r_1.1.7       magrittr_1.5        
-    ## [25] scales_0.3.0         htmltools_0.2.6      MASS_7.3-44         
-    ## [28] assertthat_0.1       colorspace_1.2-6     labeling_0.3        
-    ## [31] stringi_0.5-5        lazyeval_0.1.10      RCurl_1.95-4.7      
-    ## [34] munsell_0.4.2
+    ## [19] XML_3.98-1.3         rmarkdown_0.8.1      reshape2_1.4.1      
+    ## [22] lambda.r_1.1.7       magrittr_1.5         scales_0.3.0        
+    ## [25] htmltools_0.2.6      MASS_7.3-44          assertthat_0.1      
+    ## [28] colorspace_1.2-6     labeling_0.3         stringi_1.0-1       
+    ## [31] lazyeval_0.1.10      RCurl_1.95-4.7       munsell_0.4.2
