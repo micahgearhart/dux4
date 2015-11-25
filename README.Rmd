@@ -529,7 +529,7 @@ dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnas
 dux4dox_1k$dnase_overlap <- dux4dox_1k %over% dnase
 ```
 
-```{r violin_plots,eval=T}
+```{r violin_plots,eval=F}
 
 as.data.frame(mcols(dux4dox_1k)[,c(4,5,7)]) %>% 
   gather(dox,log2cpm,k27nd:k27pd) %>%
@@ -570,7 +570,18 @@ H3<-new("fileset", filename=c( "../chip/h3_nodox.R1_trimmed.fastq.hg19.bam",
            labels=c("H3 -Dox","H3 +Dox", "DUX4"))
 (H3<-countFileset(H3))
 
-save(h3k27,H3,DUX4,file="filesets.rdata")
+h3k4<-new("fileset",filename=c("../chip/h3k4me_s91_nodox.R1_trimmed.fastq.hg19.bam",
+           "../chip/h3k4me_s92_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3K4me3 -Dox","H3K4me3 +Dox"))
+(h3k4<-countFileset(h3k4))
+
+p300<-new("fileset",filename=c("../chip/p300_s93_nodox.R1_trimmed.fastq.hg19.bam",
+          "../chip/p300_s94_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("P300 -Dox","P300 +Dox"))
+(p300<-countFileset(p300))
+
+
+save(h3k27,H3,h3k4,p300,DUX4,file="filesets.rdata")
 ```
 
 
@@ -582,14 +593,16 @@ length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE])
 #length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE & dux4dox_1k$score > 35])
 #temp<-sample(temp,500)
 temp<-temp[with(temp,order(-score))]
-benchplot(tornado(temp,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+#benchplot(tornado(temp,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+benchplot(tornado(temp,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
 ```
 
 ```{r Tornado_Plots_2,eval=T}
-benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+#benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+benchplot(tornado(temp,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
 ```
 
-```{r Tornado_Plots_3,eval=T}
+```{r Tornado_Plots_3,eval=F}
 benchplot(twister(temp,dataset=H3,pad = 3500,ord=0,window=1,color="darkgreen"))
 ```
 
@@ -599,14 +612,16 @@ length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
 #length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE & dux4dox_1k$score > 35])
 #temp<-sample(temp,500)
 temp2<-temp2[with(temp2,order(-score))]
-benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+#benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+benchplot(tornado(temp2,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
 ```
 
 ```{r Tornado_Plots_5,eval=T}
-benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+#benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+benchplot(tornado(temp2,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
 ```
 
-```{r Tornado_Plots_6,eval=T}
+```{r Tornado_Plots_6,eval=F}
 benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="blue"))
 ```
  

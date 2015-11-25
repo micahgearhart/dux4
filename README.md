@@ -665,11 +665,7 @@ as.data.frame(mcols(dux4dox_1k)[,c(4,5,7)]) %>%
   stat_summary(fun.y=median.quartile,geom='point') +
    scale_fill_manual(values=brewer.pal(3, "Dark2")[1:2]) +
    theme_bw()
-```
 
-![](README_files/figure-markdown_github/violin_plots-1.png)
-
-``` r
 #now facet by dnase_overlap
 as.data.frame(mcols(dux4dox_1k)[,c(4,5,7)]) %>% 
   gather(dox,log2cpm,k27nd:k27pd) %>%
@@ -681,8 +677,6 @@ as.data.frame(mcols(dux4dox_1k)[,c(4,5,7)]) %>%
    scale_fill_manual(values=brewer.pal(3, "Dark2")[1:2]) +
    theme_bw()
 ```
-
-![](README_files/figure-markdown_github/violin_plots-2.png)
 
 Tornado's
 =========
@@ -702,7 +696,18 @@ H3<-new("fileset", filename=c( "../chip/h3_nodox.R1_trimmed.fastq.hg19.bam",
            labels=c("H3 -Dox","H3 +Dox", "DUX4"))
 (H3<-countFileset(H3))
 
-save(h3k27,H3,DUX4,file="filesets.rdata")
+h3k4<-new("fileset",filename=c("../chip/h3k4me_s91_nodox.R1_trimmed.fastq.hg19.bam",
+           "../chip/h3k4me_s92_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3K4me3 -Dox","H3K4me3 +Dox"))
+(h3k4<-countFileset(h3k4))
+
+p300<-new("fileset",filename=c("../chip/p300_s93_nodox.R1_trimmed.fastq.hg19.bam",
+          "../chip/p300_s94_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("P300 -Dox","P300 +Dox"))
+(p300<-countFileset(p300))
+
+
+save(h3k27,H3,h3k4,p300,DUX4,file="filesets.rdata")
 ```
 
 ``` r
@@ -717,43 +722,36 @@ length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE])
 #length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE & dux4dox_1k$score > 35])
 #temp<-sample(temp,500)
 temp<-temp[with(temp,order(-score))]
-benchplot(tornado(temp,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+#benchplot(tornado(temp,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+benchplot(tornado(temp,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
 ```
 
 ![](README_files/figure-markdown_github/Tornado_Plots-1.png)
 
-    ##        step user.self sys.self elapsed
-    ## 1 construct   431.839    9.164 492.241
-    ## 2     build    74.100    2.259  76.402
-    ## 3    render    12.423    0.001  12.429
-    ## 4      draw    67.503    0.004  67.535
-    ## 5     TOTAL   585.865   11.428 648.607
+    ##        step user.self sys.self  elapsed
+    ## 1 construct   485.895    9.610 1029.834
+    ## 2     build    83.887    3.312   88.037
+    ## 3    render    11.713    0.001   11.925
+    ## 4      draw    83.154    0.000   83.183
+    ## 5     TOTAL   664.649   12.923 1212.979
 
 ``` r
-benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+#benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+benchplot(tornado(temp,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
 ```
 
 ![](README_files/figure-markdown_github/Tornado_Plots_2-1.png)
 
     ##        step user.self sys.self elapsed
-    ## 1 construct   661.299    7.559 704.906
-    ## 2     build   130.514    5.130 135.698
-    ## 3    render    17.937    0.000  17.945
-    ## 4      draw   105.792    0.000 105.832
-    ## 5     TOTAL   915.542   12.689 964.381
+    ## 1 construct   206.372    1.671 571.464
+    ## 2     build    34.766    0.000  34.779
+    ## 3    render     5.295    0.000   5.298
+    ## 4      draw    37.801    0.000  37.814
+    ## 5     TOTAL   284.234    1.671 649.355
 
 ``` r
 benchplot(twister(temp,dataset=H3,pad = 3500,ord=0,window=1,color="darkgreen"))
 ```
-
-![](README_files/figure-markdown_github/Tornado_Plots_3-1.png)
-
-    ##        step user.self sys.self  elapsed
-    ## 1 construct  1490.066    22.92 2348.449
-    ## 2     build     0.107     0.00    0.106
-    ## 3    render     0.173     0.00    0.173
-    ## 4      draw     0.108     0.00    0.109
-    ## 5     TOTAL  1490.454    22.92 2348.837
 
 ``` r
 length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
@@ -765,43 +763,36 @@ length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
 #length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE & dux4dox_1k$score > 35])
 #temp<-sample(temp,500)
 temp2<-temp2[with(temp2,order(-score))]
-benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+#benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
+benchplot(tornado(temp2,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
 ```
 
 ![](README_files/figure-markdown_github/Tornado_Plots_4-1.png)
 
     ##        step user.self sys.self elapsed
-    ## 1 construct   493.164     1.86 537.447
-    ## 2     build    98.339     0.00  98.375
-    ## 3    render    15.450     0.00  15.456
-    ## 4      draw    87.485     0.00  87.516
-    ## 5     TOTAL   694.438     1.86 738.794
+    ## 1 construct   343.413    1.217 558.421
+    ## 2     build    60.578    0.000  60.600
+    ## 3    render     8.793    0.000   8.796
+    ## 4      draw    59.757    0.000  59.777
+    ## 5     TOTAL   472.541    1.217 687.594
 
 ``` r
-benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+#benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+benchplot(tornado(temp2,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
 ```
 
 ![](README_files/figure-markdown_github/Tornado_Plots_5-1.png)
 
     ##        step user.self sys.self elapsed
-    ## 1 construct   556.705    1.215 577.919
-    ## 2     build   112.553    0.000 112.609
-    ## 3    render    15.984    0.000  15.991
-    ## 4      draw    92.401    0.003  92.445
-    ## 5     TOTAL   777.643    1.218 798.964
+    ## 1 construct   219.653    1.334 423.717
+    ## 2     build    36.270    0.000  36.284
+    ## 3    render     5.331    0.000   5.333
+    ## 4      draw    36.773    0.000  36.786
+    ## 5     TOTAL   298.027    1.334 502.120
 
 ``` r
 benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="blue"))
 ```
-
-![](README_files/figure-markdown_github/Tornado_Plots_6-1.png)
-
-    ##        step user.self sys.self  elapsed
-    ## 1 construct  2015.515   19.035 2619.870
-    ## 2     build     0.042    0.000    0.042
-    ## 3    render     0.093    0.000    0.092
-    ## 4      draw     0.056    0.000    0.057
-    ## 5     TOTAL  2015.706   19.035 2620.061
 
 ``` r
 load("h3k27_counts.rdata")
