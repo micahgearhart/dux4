@@ -133,6 +133,16 @@ library(BSgenome.Hsapiens.UCSC.hg19)
 
 ``` r
 hg19<-BSgenome.Hsapiens.UCSC.hg19
+library("ChIPpeakAnno")
+```
+
+    ## Loading required package: grid
+    ## Loading required package: VennDiagram
+    ## Loading required package: futile.logger
+    ## Loading required package: biomaRt
+    ## Loading required package: DBI
+
+``` r
 #library("TFBSTools")
 #library("MotIV")
 #library("biomaRt")
@@ -217,12 +227,9 @@ res[grep("ZSCAN4",res$hgnc),]
     ## ENSG00000180532 ZSCAN4
 
 ``` r
-plot(res$log2FoldChange,-1*log10(res$padj),cex=0.5,pch=16)
-```
+#plot(res$log2FoldChange,-1*log10(res$padj),cex=0.5,pch=16)
 
-![](README_files/figure-markdown_github/DESEQ2-3.png)
 
-``` r
 #11-17-15
 f<-as.data.frame(fpkm(cds))
 idx<-match(rownames(f),hgnc$ensembl_gene_id)
@@ -277,6 +284,106 @@ f[grep("MYOD1",f$hgnc),]
 ``` r
 write.csv(f,file="Supplementary_Table_1.csv",quote=F)
 ```
+
+Michael would like to know how much overlap with the tapscott dataset and does that number change if peaks are called against input vs flag-control.
+====================================================================================================================================================
+
+``` r
+#hg19blacklist
+hg19bl<-rtracklayer::import("hg19_blacklist.bed")
+
+dux4_tap<-rtracklayer::import("../sra/dux4_fl_pe5_peaks.bed")
+dux4_tap<-keepSeqlevels(dux4_tap,seqlevels(hg19)[1:24])
+length(dux4_tap<-dux4_tap[!dux4_tap %over% hg19bl])
+```
+
+    ## [1] 134196
+
+``` r
+dux4_vs_input<-rtracklayer::import("DUX4Dox.bed")
+dux4_vs_input<-keepSeqlevels(dux4_vs_input,seqlevels(hg19)[1:24])
+length(dux4_vs_input<-dux4_vs_input[!dux4_vs_input %over% hg19bl])
+```
+
+    ## [1] 12674
+
+``` r
+dux4_vs_flag<-rtracklayer::import("../chip/DUX4_vs_flag_pe5_peaks.bed")
+dux4_vs_flag<-keepSeqlevels(dux4_vs_flag,seqlevels(hg19)[1:24])
+length(dux4_vs_flag<-dux4_vs_flag[!dux4_vs_flag %over% hg19bl])
+```
+
+    ## [1] 26025
+
+``` r
+mean(dux4_vs_flag[dux4_vs_flag$score > 40] %over% dux4_tap)
+```
+
+    ## [1] 0.1820557
+
+``` r
+mean(dux4_vs_input[dux4_vs_input$score > 40] %over% dux4_tap)
+```
+
+    ## [1] 0.1731892
+
+``` r
+mean(dux4_tap %over% dux4_vs_flag)
+```
+
+    ## [1] 0.03676712
+
+``` r
+#tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
+#save(tss,file="tss.rdata")
+load("tss.rdata")
+dux4_vs_flag_anno <- annotatePeakInBatch(dux4_vs_flag, AnnotationData=tss, output="nearest", maxgap=100L)
+summary(dux4_vs_flag_anno$shortestDistance)
+```
+
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    ##       0    8449   24770   45740   58680 2214000
+
+``` r
+#res$peak10kb<-rownames(res) %in% unique(dux4_vs_flag_anno$feature)
+res$peak10kb<-"> 50kb"
+overs<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$insideFeature=="overlapStart",]$feature)
+fivekb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 5000,]$feature)
+fivekb<-fivekb[!fivekb %in% overs]
+tenkb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 10000,]$feature)
+tenkb<-tenkb[!(tenkb %in% fivekb) & !(tenkb %in% overs)]
+fiftykb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 50000,]$feature)
+fiftykb<-tenkb[!(fiftykb %in% tenkb) & !(fiftykb %in% fivekb) & !(fiftykb %in% overs)]
+res[rownames(res) %in% overs,"peak10kb"]<-"Overlap's Start"
+res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
+res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
+res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
+table(res$peak10kb)
+```
+
+    ## 
+    ##          < 10Kb          > 50kb          < 50Kb           < 5Kb 
+    ##             367           16490             276            1338 
+    ## Overlap's Start 
+    ##             186
+
+``` r
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+res %>% 
+  mutate(mlogp=-1*log10(padj)) %>% 
+  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
+  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
+  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
+                                    name="Distance to Dux4 Peak") +
+  xlab("DUX4 Induced Log2 Fold Change")+
+  ylab("-log10(Adjusted P Value)") +
+ # scale_alpha_continuous(range = c(1.0, 1.0))+
+  theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+```
+
+![](README_files/figure-markdown_github/volcano_plot-1.png)
 
 Use the rlog to find some high variance genes that aren't likely do to noise.
 =============================================================================
@@ -402,8 +509,6 @@ save(dux4dox_1k_counts,dux4dox_4k_counts,file="DUX4_counts.rdata")
 ``` r
 load("DUX4_counts.rdata")
 
-#hg19blacklist
-hg19bl<-import("hg19_blacklist.bed")
 
 dux4dox_1k<-rowRanges(dux4dox_1k_counts)
 (n<-apply(assays(dux4dox_1k_counts)$counts,2,sum))
@@ -520,11 +625,11 @@ benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
 ![](README_files/figure-markdown_github/Tornado_Plots_2-1.png)
 
     ##        step user.self sys.self  elapsed
-    ## 1 construct   712.976   12.288  737.773
-    ## 2     build   127.747    9.377  137.177
-    ## 3    render    24.402    0.000   24.411
-    ## 4      draw   129.328    0.463  129.842
-    ## 5     TOTAL   994.453   22.128 1029.203
+    ## 1 construct   703.405   13.448  726.604
+    ## 2     build   141.834    0.182  142.071
+    ## 3    render    21.996    0.000   22.005
+    ## 4      draw   133.645    0.000  133.693
+    ## 5     TOTAL  1000.880   13.630 1024.373
 
 ``` r
 #benchplot(tornado(temp,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
@@ -537,11 +642,11 @@ benchplot(twister(temp,dataset=H3,pad = 3500,ord=0,window=1,color="darkgreen"))
 ![](README_files/figure-markdown_github/Tornado_Plots_3-1.png)
 
     ##        step user.self sys.self  elapsed
-    ## 1 construct  1063.841   15.867 1210.917
-    ## 2     build     0.079    0.000    0.078
-    ## 3    render     0.136    0.000    0.137
-    ## 4      draw     0.084    0.000    0.083
-    ## 5     TOTAL  1064.140   15.867 1211.215
+    ## 1 construct  1090.535   19.872 1252.731
+    ## 2     build     0.052    0.000    0.052
+    ## 3    render     0.108    0.000    0.108
+    ## 4      draw     0.067    0.000    0.067
+    ## 5     TOTAL  1090.762   19.872 1252.958
 
 ``` r
 length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
@@ -555,7 +660,17 @@ length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
 temp2<-temp2[with(temp2,order(-score))]
 #benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
 #benchplot(tornado(temp2,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
+benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
 ```
+
+![](README_files/figure-markdown_github/Tornado_Plots_4-1.png)
+
+    ##        step user.self sys.self elapsed
+    ## 1 construct   537.147    1.420 540.956
+    ## 2     build   124.349    0.297 124.697
+    ## 3    render    19.791    0.076  19.876
+    ## 4      draw   117.018    0.243 117.308
+    ## 5     TOTAL   798.305    2.036 802.837
 
 ``` r
 #benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
@@ -566,11 +681,11 @@ benchplot(twister(temp,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen")
 ![](README_files/figure-markdown_github/Tornado_Plots_5-1.png)
 
     ##        step user.self sys.self elapsed
-    ## 1 construct   356.794    2.459 388.680
-    ## 2     build     0.079    0.000   0.079
-    ## 3    render     0.135    0.000   0.135
-    ## 4      draw     0.082    0.000   0.083
-    ## 5     TOTAL   357.090    2.459 388.977
+    ## 1 construct   387.934    2.954 421.053
+    ## 2     build     0.049    0.000   0.049
+    ## 3    render     0.106    0.000   0.106
+    ## 4      draw     0.065    0.000   0.065
+    ## 5     TOTAL   388.154    2.954 421.273
 
 ``` r
 benchplot(twister(temp2,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen"))
@@ -579,11 +694,11 @@ benchplot(twister(temp2,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen"
 ![](README_files/figure-markdown_github/Tornado_Plots_6-1.png)
 
     ##        step user.self sys.self elapsed
-    ## 1 construct   553.099    2.185 562.309
-    ## 2     build     0.081    0.000   0.080
-    ## 3    render     0.133    0.000   0.135
-    ## 4      draw     0.083    0.000   0.083
-    ## 5     TOTAL   553.396    2.185 562.607
+    ## 1 construct   552.123    2.402 560.901
+    ## 2     build     0.050    0.001   0.051
+    ## 3    render     0.103    0.001   0.104
+    ## 4      draw     0.063    0.002   0.065
+    ## 5     TOTAL   552.339    2.406 561.121
 
 ``` r
 benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="blue"))
@@ -592,11 +707,11 @@ benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="blue"))
 ![](README_files/figure-markdown_github/Tornado_Plots_7-1.png)
 
     ##        step user.self sys.self  elapsed
-    ## 1 construct  1461.070   12.982 1516.012
-    ## 2     build     0.036    0.000    0.036
-    ## 3    render     0.081    0.000    0.081
-    ## 4      draw     0.050    0.000    0.049
-    ## 5     TOTAL  1461.237   12.982 1516.178
+    ## 1 construct  1485.872   14.163 1559.973
+    ## 2     build     0.037    0.000    0.037
+    ## 3    render     0.087    0.000    0.087
+    ## 4      draw     0.160    0.000    0.160
+    ## 5     TOTAL  1486.156   14.163 1560.257
 
 ``` r
 load("h3k27_counts.rdata")
@@ -648,38 +763,42 @@ sessionInfo()
     ## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
     ## 
     ## attached base packages:
-    ## [1] parallel  stats4    stats     graphics  grDevices utils     datasets 
-    ## [8] methods   base     
+    ##  [1] grid      parallel  stats4    stats     graphics  grDevices utils    
+    ##  [8] datasets  methods   base     
     ## 
     ## other attached packages:
-    ##  [1] BSgenome.Hsapiens.UCSC.hg19_1.4.0 BSgenome_1.36.3                  
-    ##  [3] tidyr_0.3.1                       dplyr_0.4.3                      
-    ##  [5] RColorBrewer_1.1-2                rtracklayer_1.28.10              
-    ##  [7] GenomicAlignments_1.4.2           Rsamtools_1.20.5                 
-    ##  [9] Biostrings_2.36.4                 XVector_0.8.0                    
-    ## [11] BiocParallel_1.2.22               pheatmap_1.0.7                   
-    ## [13] ggplot2_1.0.1                     DESeq2_1.8.2                     
-    ## [15] RcppArmadillo_0.6.200.2.0         Rcpp_0.12.1                      
-    ## [17] GenomicRanges_1.20.8              GenomeInfoDb_1.4.3               
-    ## [19] IRanges_2.2.9                     S4Vectors_0.6.6                  
-    ## [21] BiocGenerics_0.14.0              
+    ##  [1] ChIPpeakAnno_3.2.2                RSQLite_1.0.0                    
+    ##  [3] DBI_0.3.1                         biomaRt_2.24.1                   
+    ##  [5] VennDiagram_1.6.16                futile.logger_1.4.1              
+    ##  [7] BSgenome.Hsapiens.UCSC.hg19_1.4.0 BSgenome_1.36.3                  
+    ##  [9] tidyr_0.3.1                       dplyr_0.4.3                      
+    ## [11] RColorBrewer_1.1-2                rtracklayer_1.28.10              
+    ## [13] GenomicAlignments_1.4.2           Rsamtools_1.20.5                 
+    ## [15] Biostrings_2.36.4                 XVector_0.8.0                    
+    ## [17] BiocParallel_1.2.22               pheatmap_1.0.7                   
+    ## [19] ggplot2_1.0.1                     DESeq2_1.8.2                     
+    ## [21] RcppArmadillo_0.6.200.2.0         Rcpp_0.12.1                      
+    ## [23] GenomicRanges_1.20.8              GenomeInfoDb_1.4.3               
+    ## [25] IRanges_2.2.9                     S4Vectors_0.6.6                  
+    ## [27] BiocGenerics_0.14.0              
     ## 
     ## loaded via a namespace (and not attached):
-    ##  [1] locfit_1.5-9.1       lattice_0.20-33      assertthat_0.1      
-    ##  [4] digest_0.6.8         R6_2.1.1             plyr_1.8.3          
-    ##  [7] futile.options_1.0.0 acepack_1.3-3.3      RSQLite_1.0.0       
-    ## [10] evaluate_0.8         zlibbioc_1.14.0      lazyeval_0.1.10     
-    ## [13] annotate_1.46.1      rpart_4.1-10         rmarkdown_0.8.1     
-    ## [16] labeling_0.3         proto_0.3-10         splines_3.2.2       
-    ## [19] geneplotter_1.46.0   stringr_1.0.0        foreign_0.8-66      
-    ## [22] RCurl_1.95-4.7       munsell_0.4.2        htmltools_0.2.6     
-    ## [25] nnet_7.3-11          gridExtra_2.0.0      Hmisc_3.17-0        
-    ## [28] XML_3.98-1.3         MASS_7.3-44          bitops_1.0-6        
-    ## [31] grid_3.2.2           xtable_1.8-0         gtable_0.1.2        
-    ## [34] DBI_0.3.1            magrittr_1.5         formatR_1.2.1       
-    ## [37] scales_0.3.0         stringi_1.0-1        reshape2_1.4.1      
-    ## [40] genefilter_1.50.0    latticeExtra_0.6-26  futile.logger_1.4.1 
-    ## [43] Formula_1.2-1        lambda.r_1.1.7       tools_3.2.2         
-    ## [46] Biobase_2.28.0       survival_2.38-3      yaml_2.1.13         
-    ## [49] AnnotationDbi_1.30.1 colorspace_1.2-6     cluster_2.0.3       
-    ## [52] knitr_1.11
+    ##  [1] Biobase_2.28.0         splines_3.2.2          Formula_1.2-1         
+    ##  [4] assertthat_0.1         latticeExtra_0.6-26    RBGL_1.44.0           
+    ##  [7] yaml_2.1.13            lattice_0.20-33        limma_3.24.15         
+    ## [10] digest_0.6.8           colorspace_1.2-6       htmltools_0.2.6       
+    ## [13] plyr_1.8.3             XML_3.98-1.3           genefilter_1.50.0     
+    ## [16] zlibbioc_1.14.0        GO.db_3.1.2            xtable_1.8-0          
+    ## [19] scales_0.3.0           annotate_1.46.1        GenomicFeatures_1.20.6
+    ## [22] lazyeval_0.1.10        nnet_7.3-11            proto_0.3-10          
+    ## [25] survival_2.38-3        magrittr_1.5           evaluate_0.8          
+    ## [28] MASS_7.3-44            foreign_0.8-66         graph_1.46.0          
+    ## [31] BiocInstaller_1.18.5   tools_3.2.2            formatR_1.2.1         
+    ## [34] stringr_1.0.0          munsell_0.4.2          locfit_1.5-9.1        
+    ## [37] cluster_2.0.3          AnnotationDbi_1.30.1   lambda.r_1.1.7        
+    ## [40] RCurl_1.95-4.7         labeling_0.3           bitops_1.0-6          
+    ## [43] rmarkdown_0.8.1        gtable_0.1.2           multtest_2.24.0       
+    ## [46] reshape2_1.4.1         R6_2.1.1               gridExtra_2.0.0       
+    ## [49] knitr_1.11             Hmisc_3.17-0           futile.options_1.0.0  
+    ## [52] stringi_1.0-1          geneplotter_1.46.0     rpart_4.1-10          
+    ## [55] acepack_1.3-3.3

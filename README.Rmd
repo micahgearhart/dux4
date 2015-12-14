@@ -39,6 +39,7 @@ library("tidyr")
 #hg38<-BSgenome.Hsapiens.NCBI.GRCh38
 library(BSgenome.Hsapiens.UCSC.hg19)
 hg19<-BSgenome.Hsapiens.UCSC.hg19
+library("ChIPpeakAnno")
 #library("TFBSTools")
 #library("MotIV")
 #library("biomaRt")
@@ -100,7 +101,7 @@ res<-res[!is.na(res$padj),]
 res<-res[with(res,order(padj,-log2FoldChange)),]
 res[grep("ZSCAN4",res$hgnc),]
 
-plot(res$log2FoldChange,-1*log10(res$padj),cex=0.5,pch=16)
+#plot(res$log2FoldChange,-1*log10(res$padj),cex=0.5,pch=16)
 
 
 #11-17-15
@@ -112,6 +113,69 @@ f[grep("ZSCAN4",f$hgnc),]
 f[grep("MYOD1",f$hgnc),]
 write.csv(f,file="Supplementary_Table_1.csv",quote=F)
 ```
+
+
+# Michael would like to know how much overlap with the tapscott dataset and does that number change if peaks are called against input vs flag-control.
+```{r import_peaklist,eval=T}
+
+#hg19blacklist
+hg19bl<-rtracklayer::import("hg19_blacklist.bed")
+
+dux4_tap<-rtracklayer::import("../sra/dux4_fl_pe5_peaks.bed")
+dux4_tap<-keepSeqlevels(dux4_tap,seqlevels(hg19)[1:24])
+length(dux4_tap<-dux4_tap[!dux4_tap %over% hg19bl])
+       
+dux4_vs_input<-rtracklayer::import("DUX4Dox.bed")
+dux4_vs_input<-keepSeqlevels(dux4_vs_input,seqlevels(hg19)[1:24])
+length(dux4_vs_input<-dux4_vs_input[!dux4_vs_input %over% hg19bl])
+
+dux4_vs_flag<-rtracklayer::import("../chip/DUX4_vs_flag_pe5_peaks.bed")
+dux4_vs_flag<-keepSeqlevels(dux4_vs_flag,seqlevels(hg19)[1:24])
+length(dux4_vs_flag<-dux4_vs_flag[!dux4_vs_flag %over% hg19bl])
+
+mean(dux4_vs_flag[dux4_vs_flag$score > 40] %over% dux4_tap)
+mean(dux4_vs_input[dux4_vs_input$score > 40] %over% dux4_tap)
+mean(dux4_tap %over% dux4_vs_flag)
+```
+
+```{r volcano_plot,eval=T}
+#tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
+#save(tss,file="tss.rdata")
+load("tss.rdata")
+dux4_vs_flag_anno <- annotatePeakInBatch(dux4_vs_flag, AnnotationData=tss, output="nearest", maxgap=100L)
+summary(dux4_vs_flag_anno$shortestDistance)
+#res$peak10kb<-rownames(res) %in% unique(dux4_vs_flag_anno$feature)
+res$peak10kb<-"> 50kb"
+overs<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$insideFeature=="overlapStart",]$feature)
+fivekb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 5000,]$feature)
+fivekb<-fivekb[!fivekb %in% overs]
+tenkb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 10000,]$feature)
+tenkb<-tenkb[!(tenkb %in% fivekb) & !(tenkb %in% overs)]
+fiftykb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 50000,]$feature)
+fiftykb<-tenkb[!(fiftykb %in% tenkb) & !(fiftykb %in% fivekb) & !(fiftykb %in% overs)]
+res[rownames(res) %in% overs,"peak10kb"]<-"Overlap's Start"
+res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
+res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
+res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
+table(res$peak10kb)
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+res %>% 
+  mutate(mlogp=-1*log10(padj)) %>% 
+  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
+  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
+  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
+                                    name="Distance to Dux4 Peak") +
+  xlab("DUX4 Induced Log2 Fold Change")+
+  ylab("-log10(Adjusted P Value)") +
+ # scale_alpha_continuous(range = c(1.0, 1.0))+
+  theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+```
+
+
+
 
 # Use the rlog to find some high variance genes that aren't likely do to noise.
 ```{r eval=F}
@@ -233,8 +297,6 @@ save(dux4dox_1k_counts,dux4dox_4k_counts,file="DUX4_counts.rdata")
 ```{r DNAse,eval=T}
 load("DUX4_counts.rdata")
 
-#hg19blacklist
-hg19bl<-import("hg19_blacklist.bed")
 
 dux4dox_1k<-rowRanges(dux4dox_1k_counts)
 (n<-apply(assays(dux4dox_1k_counts)$counts,2,sum))
@@ -327,6 +389,7 @@ length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
 temp2<-temp2[with(temp2,order(-score))]
 #benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
 #benchplot(tornado(temp2,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
+benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
 ```
 
 ```{r Tornado_Plots_5,eval=T}
