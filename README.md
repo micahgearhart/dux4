@@ -619,20 +619,8 @@ temp<-temp[with(temp,order(-score))]
 ```
 
 ``` r
-benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
-```
-
-![](README_files/figure-markdown_github/Tornado_Plots_2-1.png)
-
-    ##        step user.self sys.self  elapsed
-    ## 1 construct   703.405   13.448  726.604
-    ## 2     build   141.834    0.182  142.071
-    ## 3    render    21.996    0.000   22.005
-    ## 4      draw   133.645    0.000  133.693
-    ## 5     TOTAL  1000.880   13.630 1024.373
-
-``` r
-#benchplot(tornado(temp,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
+#benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+##benchplot(tornado(temp,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
 ```
 
 ``` r
@@ -642,11 +630,11 @@ benchplot(twister(temp,dataset=H3,pad = 3500,ord=0,window=1,color="darkgreen"))
 ![](README_files/figure-markdown_github/Tornado_Plots_3-1.png)
 
     ##        step user.self sys.self  elapsed
-    ## 1 construct  1090.535   19.872 1252.731
-    ## 2     build     0.052    0.000    0.052
-    ## 3    render     0.108    0.000    0.108
-    ## 4      draw     0.067    0.000    0.067
-    ## 5     TOTAL  1090.762   19.872 1252.958
+    ## 1 construct  1155.813   72.198 1361.825
+    ## 2     build     0.053    0.000    0.053
+    ## 3    render     0.108    0.000    0.109
+    ## 4      draw     0.068    0.000    0.067
+    ## 5     TOTAL  1156.042   72.198 1362.054
 
 ``` r
 length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
@@ -660,17 +648,8 @@ length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
 temp2<-temp2[with(temp2,order(-score))]
 #benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
 #benchplot(tornado(temp2,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
-benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+#benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
 ```
-
-![](README_files/figure-markdown_github/Tornado_Plots_4-1.png)
-
-    ##        step user.self sys.self elapsed
-    ## 1 construct   537.147    1.420 540.956
-    ## 2     build   124.349    0.297 124.697
-    ## 3    render    19.791    0.076  19.876
-    ## 4      draw   117.018    0.243 117.308
-    ## 5     TOTAL   798.305    2.036 802.837
 
 ``` r
 #benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
@@ -681,11 +660,11 @@ benchplot(twister(temp,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen")
 ![](README_files/figure-markdown_github/Tornado_Plots_5-1.png)
 
     ##        step user.self sys.self elapsed
-    ## 1 construct   387.934    2.954 421.053
-    ## 2     build     0.049    0.000   0.049
-    ## 3    render     0.106    0.000   0.106
-    ## 4      draw     0.065    0.000   0.065
-    ## 5     TOTAL   388.154    2.954 421.273
+    ## 1 construct   367.622      2.7 401.109
+    ## 2     build     0.050      0.0   0.050
+    ## 3    render     0.101      0.0   0.102
+    ## 4      draw     0.065      0.0   0.064
+    ## 5     TOTAL   367.838      2.7 401.325
 
 ``` r
 benchplot(twister(temp2,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen"))
@@ -694,24 +673,24 @@ benchplot(twister(temp2,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen"
 ![](README_files/figure-markdown_github/Tornado_Plots_6-1.png)
 
     ##        step user.self sys.self elapsed
-    ## 1 construct   552.123    2.402 560.901
-    ## 2     build     0.050    0.001   0.051
-    ## 3    render     0.103    0.001   0.104
-    ## 4      draw     0.063    0.002   0.065
-    ## 5     TOTAL   552.339    2.406 561.121
+    ## 1 construct   577.277    2.536 590.314
+    ## 2     build     0.052    0.000   0.052
+    ## 3    render     0.104    0.001   0.105
+    ## 4      draw     0.064    0.000   0.064
+    ## 5     TOTAL   577.497    2.537 590.535
 
 ``` r
-benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="blue"))
+benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=1,color="blue"))
 ```
 
 ![](README_files/figure-markdown_github/Tornado_Plots_7-1.png)
 
     ##        step user.self sys.self  elapsed
-    ## 1 construct  1485.872   14.163 1559.973
-    ## 2     build     0.037    0.000    0.037
-    ## 3    render     0.087    0.000    0.087
-    ## 4      draw     0.160    0.000    0.160
-    ## 5     TOTAL  1486.156   14.163 1560.257
+    ## 1 construct  1529.370   45.023 1691.613
+    ## 2     build     0.052    0.000    0.053
+    ## 3    render     0.106    0.000    0.106
+    ## 4      draw     0.066    0.000    0.066
+    ## 5     TOTAL  1529.594   45.023 1691.838
 
 ``` r
 load("h3k27_counts.rdata")
