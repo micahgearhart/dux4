@@ -1,5 +1,5 @@
 ---
-title: "Dux4 Overexpression"
+title: "DUX4 recruits p300/CBP through its C-terminus and induces global H3K27 acetylation changes"
 author: "micah gearhart"
 date: "10/11/2015"
 output:
@@ -7,26 +7,11 @@ output:
     variant: markdown_github
 ---
 
-
-```{r installations, eval=F}
-BiocInstaller::biocLite("Homo.sapiens")
-BiocInstaller::biocLite("genefilter")
-BiocInstaller::biocLite("goseq")
-BiocInstaller::biocLite("TFBSTools")
-BiocInstaller::biocLite("MotIV")
-BiocInstaller::biocLite("motifRG")
-BiocInstaller::biocLite("BiocParallel")
-BiocInstaller::biocLite("MotifDb")
-```
-
-```{r libraries, eval=T}
+```{r libraries,eval=T,results='hide',message=FALSE,warning=FALSE}
 library("DESeq2")
 library("ggplot2")
-#library("Homo.sapiens")
-#library("genefilter")
+library("gridExtra")
 library("pheatmap")
-#library("goseq")
-#library("GenomicFeatures")
 library("BiocParallel")
 library("GenomicAlignments")
 library("Rsamtools")
@@ -34,22 +19,17 @@ library("rtracklayer")
 library("RColorBrewer")
 library("dplyr")
 library("tidyr")
-#library("exotools")
-#library("BSgenome.Hsapiens.NCBI.GRCh38")
-#hg38<-BSgenome.Hsapiens.NCBI.GRCh38
 library(BSgenome.Hsapiens.UCSC.hg19)
 hg19<-BSgenome.Hsapiens.UCSC.hg19
 library("ChIPpeakAnno")
-#library("TFBSTools")
-#library("MotIV")
-#library("biomaRt")
 source("R/hello.R")
 
+ts<-format(Sys.time(), "%a_%b_%d_%Y_%H%M")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 #Count the Number or Reads in Each ChIP Dataset
-
-```{r count_filesets,eval=F}
+```{r Filesets,eval=F}
 h3k27<-new("fileset", filename=c( "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam",
                                   "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"),
            labels=c("H3K27ac -Dox","H3K27ac +Dox"))
@@ -79,9 +59,126 @@ dnaseFS<-new("fileset",filename=c("../sra/ENCFF001BUR.bam"), labels=c("ENCODE DN
 save(h3k27,H3,DUX4i,h3k4,dnaseFS,file="filesets.rdata")
 ```
 
-Count ENCODE DNAse data
-``` {r count_encode,eval=F}
+# Import Peaklist To Use
+``` {r Peaklists,eval=T}
+#hg19blacklist
+#downloader::download("http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz",destfile="hg19_blacklist.bed.gz")
+hg19bl<-rtracklayer::import("hg19_blacklist.bed")
+
+dux4_tap<-rtracklayer::import("../sra/dux4_fl_pe5_peaks.bed")
+dux4_tap<-keepSeqlevels(dux4_tap,seqlevels(hg19)[1:24])
+length(dux4_tap<-dux4_tap[!dux4_tap %over% hg19bl])
+
+dux4_vs_input<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed")
+dux4_vs_input_summits<-rtracklayer::import("../chip/DUX4dox_pe5_summits.bed")
+
+#dux4_vs_input<-keepSeqlevels(dux4_vs_input,seqlevels(hg19)[1:24])
+#length(dux4_vs_input<-dux4_vs_input[!dux4_vs_input %over% hg19bl])
+
+#Import H327Ac Called Peaks
+length(k27pd<-import("../chip/h3k27ac_plusdox_pe5_peaks.bed"))
+length(k27nd<-import("../chip/h3k27ac_nodox_pe5_peaks.bed"))
+
+#Import DNAse data from ENCODE
+#downloader::download("https://www.encodeproject.org/files/ENCFF001BVR/@@download/ENCFF001BVR.bigBed",destfile="ENCFF001BVR.bigBed")
+dnase<-read.table("ENCFF001BVR.bed",stringsAsFactors=FALSE)
+dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnase$V7,score2=dnase$V8)
+
+#Download Published Data from http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE33838
+temp<-read.csv("GSM837613_Dux4.full.peak.csv",stringsAsFactors=F)
+tsGR<-GRanges(seqnames=temp$chr,IRanges(start=temp$start,end=temp$end),max.cov=temp$max.cov,pval=temp$pval)
+
+hg18ToHg19<-import.chain("hg18ToHg19.over.chain")
+length(tsGR_hg19<-unlist(liftOver(tsGR,hg18ToHg19)))
+#export(tsGR_hg19,"tsGR_hg19.bed")
 ```
+
+#Count Reads under DUX4 Peaks in ChIP datasets
+```{r Count_Reads_DUX4,eval=F}
+dux4dox_1k<-dux4_vs_input_summits+500
+dux4dox_4k<-dux4_vs_input_summits+2000
+
+(fls <- list.files("../chip", pattern=glob2rx("*hg19.bam$"),full=TRUE))
+bamlst <- BamFileList(fls,yieldSize = 1e5)
+detectCores()
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(dux4dox_1k_counts <- summarizeOverlaps(dux4dox_1k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+system.time(dux4dox_4k_counts <- summarizeOverlaps(dux4dox_4k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+
+apply(assays(dux4dox_1k_counts)$counts,2,sum)
+apply(assays(dux4dox_4k_counts)$counts,2,sum)
+save(dux4dox_1k_counts,dux4dox_4k_counts,file="DUX4_counts.rdata")
+```
+
+# Evaluate Counts under DUX4 Peaks
+```{r violin_dux4_sites,eval=T}
+load("filesets.rdata")
+load("DUX4_counts.rdata")
+
+head(assays(dux4dox_1k_counts)$counts)
+gr<-rowRanges(dux4dox_1k_counts)
+head(gr)
+idx<-!keepSeqlevels(gr,seqlevels(hg19)[1:24]) %over% hg19bl
+allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
+(n<-colSums(allcounts))
+length(gr<-gr[idx])
+gr$k27nd<-log2(allcounts[,2]*1e6/h3k27@count[1] + 1)
+gr$k27pd<-log2(allcounts[,3]*1e6/h3k27@count[2] + 1)
+gr$input<-log2(allcounts[,7]*1e6/DUX4i@count[1] + 1)
+gr$dux4<-log2(allcounts[,1]*1e6/DUX4i@count[2] + 1)
+
+#Filter ranges with 'outlier' input counts
+(cutoff <-quantile(as.numeric(gr$input), 3/4)+1.5*IQR(as.numeric(gr$input)))
+length(gr<-gr[gr$input < cutoff])
+
+(gg_violin<- as.data.frame(mcols(gr)[,3:4]) %>%
+  gather(condition,log2cpm) %>%
+#  dplyr::filter(log2cpm > 0) %>%
+  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
+   xlab("Condition") + ylab("Log2(cpm)") +
+   geom_violin(aes(fill=condition)) +
+  scale_fill_manual(values=cbPalette[c(7,6)]) +
+   theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+)
+
+#ggsave(file="011916_violin.svg",device = svglite::svglite,plot=gg_violin,width=8.5,height=6)
+save(gg_violin,file=paste0(ts,"_figure5b.rdata"))
+
+#Order by DUX4 peak score
+gr<-gr[with(gr,order(-score))]
+
+#Add a logical to indicated DNAse Overlap
+gr$dnase_overlap <- gr %over% dnase
+
+#Replace dux4dox_1k with "cleaned up" version
+length(dux4dox_1k <- gr)
+length(dux4dox_1k_dnase <- gr[gr$dnase_overlap])
+length(dux4dox_1k_nodnase <- gr[!gr$dnase_overlap])
+
+#Also Filter full Length DUX4 Peaks
+length(dux4_vs_input<-dux4_vs_input[dux4_vs_input$name %in% dux4dox_1k$name])
+```
+
+# Measure Overlap with Geng et al 2012 Data
+```{r Geng_Overlap,eval=T}
+#Overlap with Published Peak List
+mean(dux4_vs_input  %over% tsGR_hg19)
+
+#Overlap with  MACS calls of Geng et al  DUX4 ChIP data
+mean(dux4_vs_input %over% dux4_tap)
+```
+ 
+#Figure 5c
+```{r Dux4_h3k27ac_DUX4sites,eval=T}
+benchplot(dux4_total<-twister(dux4dox_1k,dataset=DUX4i,pad = 3500,ord=0,window=1,ya=c(12,16)))
+benchplot(h3k27ac_total<-twister(dux4dox_1k,dataset=h3k27,pad = 3500,ord=0,window=1,ya=c(12,16)))
+grid.arrange(dux4_total,h3k27ac_total,ncol=1)
+save(dux4_total,h3k27ac_total,file=paste0(ts,"_figure5c.rdata"))
+```
+
+################ CLEANED UP ####################
+
 
 ```{r count_hits,eval=F}
 #Use most recent hg19 build
@@ -150,26 +247,8 @@ f[grep("MYOD1",f$hgnc),]
 write.csv(f,file="Supplementary_Table_1.csv",quote=F)
 ```
 
-
-# Michael would like to know how much overlap with the tapscott dataset and does that number change if peaks are called against input vs flag-control.
-```{r import_peaklist,eval=T}
-
-#hg19blacklist
-hg19bl<-rtracklayer::import("hg19_blacklist.bed")
-
-dux4_tap<-rtracklayer::import("../sra/dux4_fl_pe5_peaks.bed")
-dux4_tap<-keepSeqlevels(dux4_tap,seqlevels(hg19)[1:24])
-length(dux4_tap<-dux4_tap[!dux4_tap %over% hg19bl])
-       
-#dux4_vs_input<-rtracklayer::import("DUX4Dox.bed")
-dux4_vs_input<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed")
-dux4_vs_input<-keepSeqlevels(dux4_vs_input,seqlevels(hg19)[1:24])
-length(dux4_vs_input<-dux4_vs_input[!dux4_vs_input %over% hg19bl])
-
-dux4_vs_flag<-rtracklayer::import("../chip/DUX4_vs_flag_pe5_peaks.bed")
-dux4_vs_flag<-keepSeqlevels(dux4_vs_flag,seqlevels(hg19)[1:24])
-length(dux4_vs_flag<-dux4_vs_flag[!dux4_vs_flag %over% hg19bl])
-
+#Fix this Section 
+```{r overlaps,eval=F}
 mean(dux4_vs_flag[dux4_vs_flag$score > 40] %over% dux4_tap)
 mean(dux4_vs_input[dux4_vs_input$score > 40] %over% dux4_tap)
 mean(dux4_tap %over% dux4_vs_flag)
@@ -216,7 +295,7 @@ save(volcano,file="volcano.rdata")
 #dev.off()
 ```
 
-```{r volcano_plot2,eval=T}
+```{r volcano_plot2,eval=F}
 #tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
 load("tss.rdata")
 length(dux4_vs_input)
@@ -507,7 +586,7 @@ dux4dox_1k$dnase_overlap <- dux4dox_1k %over% dnase
 ```
 
 New Section
-```{r violin_dux4_sites,eval=T}
+```{r blah_violin_dux4_sites,eval=F}
 load("filesets.rdata")
 load("DUX4_counts.rdata")
 
@@ -552,7 +631,7 @@ length(dux4dox_1k_nodnase <- gr[!gr$dnase_overlap])
 ```
 
 # Measure Overlap with Geng et al 2012 Fibroblast Data
-```{r Geng_Overlap,eval=T}
+```{r blahGeng_Overlap,eval=F}
 ts<-read.csv("GSM837613_Dux4.full.peak.csv",stringsAsFactors=F)
 tsGR<-GRanges(seqnames=ts$chr,IRanges(start=ts$start,end=ts$end),max.cov=ts$max.cov,pval=ts$pval)
 
@@ -779,7 +858,7 @@ temp<-temp[with(temp,order(-ratio))]
 
 
 #New K27ac plan
-```{r h27ac_2k,eval=T}
+```{r h27ac_2k,eval=F}
 length(k27pd<-import("../chip/h3k27ac_plusdox_pe5_peaks.bed"))
 length(k27nd<-import("../chip/h3k27ac_nodox_pe5_peaks.bed"))
 length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
