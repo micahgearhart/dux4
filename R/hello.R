@@ -149,7 +149,7 @@ tornado <- function(gr,dataset,pad=250,ord=1,window=5,color="red2") {
                      #mutate(startpos=plyr::round_any(pos-spHash[as.character(which_label)]-pad,window)) %>%
                      group_by(genotype,which_label,startpos) %>%
                      summarize(count=sum(count)) %>%
-                   #  dplyr::filter(count> 4) %>%
+                     #dplyr::filter(startpos != max(startpos) ) %>%
                      mutate(count=log2(count)) %>%
                      ungroup() %>%
                      ggplot(aes(x=startpos,y=which_label,fill=count)) +
@@ -166,8 +166,10 @@ tornado <- function(gr,dataset,pad=250,ord=1,window=5,color="red2") {
                      facet_grid(. ~ genotype,scales="free_y",labeller=label_wrap) +
                      theme_bw() + theme(axis.text.y=element_blank(),
                                         axis.ticks.y=element_blank(),
-                                        panel.grid.major=element_blank())
+                                        panel.grid.major=element_blank(),
+                                        panel.grid.minor=element_blank())
   )
+
 
 }
 
@@ -180,7 +182,7 @@ tornado <- function(gr,dataset,pad=250,ord=1,window=5,color="red2") {
 ######################
 
 
-twister <- function(gr,dataset,pad=250,ord=1,window=5,color="red2") {
+twister <- function(gr,dataset,pad=250,ord=1,window=5,color="red2",ya=c(0,20)) {
 
   #if gr is not uniform width, find the center of the gr and set width to 1
   if (length(gr) > 1 & var(width(gr))!=0) {
@@ -241,6 +243,7 @@ twister <- function(gr,dataset,pad=250,ord=1,window=5,color="red2") {
                        #mutate(startpos=plyr::round_any(pos-spHash[as.character(which_label)]-pad,window)) %>%
                        group_by(genotype,startpos) %>%
                        summarize(count=sum(count)) %>%
+                       dplyr::filter(startpos != max(startpos) ) %>%
                        #  dplyr::filter(count> 4) %>%
                        mutate(count=log2(count)) %>%
                        dplyr::filter(abs(startpos)!=pad) %>% #remove artifacts at the end.
@@ -255,9 +258,12 @@ twister <- function(gr,dataset,pad=250,ord=1,window=5,color="red2") {
                     #     #                   midpoint = 0, space = "Lab",
                     #    name = "Log2(cpm)") +
 
-                       ylab("Log2(cpm)") + xlab("Position Relative to Peak Center") +
+                       ylab("Log2(cpm)") + xlab("Position Relative to Peak Center (kb)") +
+		       ylim(ya) +
                      #  facet_grid(. ~ genotype,scales="free_y",labeller=label_wrap) +
-                       theme_bw() + theme(panel.grid.major=element_blank())
+                       theme_bw() + theme(panel.grid.major=element_blank(),
+                                          panel.grid.minor=element_blank())
+
   )
 
 }

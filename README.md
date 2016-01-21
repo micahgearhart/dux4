@@ -149,6 +149,41 @@ library("ChIPpeakAnno")
 source("R/hello.R")
 ```
 
+Count the Number or Reads in Each ChIP Dataset
+==============================================
+
+``` r
+h3k27<-new("fileset", filename=c( "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam",
+                                  "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3K27ac -Dox","H3K27ac +Dox"))
+(h3k27<-countFileset(h3k27))
+
+DUX4i<-new("fileset",filename=c("../chip/input_plusdox.R1_trimmed.fastq.hg19.bam",
+                               "../chip/DUX4.R1_trimmed.fastq.hg19.bam"),
+           labels=c("Input +Dox","Flag +Dox"))
+(DUX4i<-countFileset(DUX4i))
+
+#pan Histone H3
+H3<-new("fileset", filename=c( "../chip/h3_nodox.R1_trimmed.fastq.hg19.bam",
+                                  "../chip//h3_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3 -Dox","H3 +Dox"))
+(H3<-countFileset(H3))
+
+#H3K4me3
+h3k4<-new("fileset",filename=c("../chip/h3k4me_s91_nodox.R1_trimmed.fastq.hg19.bam",
+           "../chip/h3k4me_s92_plusdox.R1_trimmed.fastq.hg19.bam"),
+           labels=c("H3K4me3 -Dox","H3K4me3 +Dox"))
+(h3k4<-countFileset(h3k4))
+
+#ENCODE DATA
+dnaseFS<-new("fileset",filename=c("../sra/ENCFF001BUR.bam"), labels=c("ENCODE DNAse"))
+(dnaseFS<-countFileset(dnaseFS))
+
+save(h3k27,H3,DUX4i,h3k4,dnaseFS,file="filesets.rdata")
+```
+
+Count ENCODE DNAse data
+
 ``` r
 #Use most recent hg19 build
 ensembl_75 = useMart(host = "feb2014.archive.ensembl.org", biomart = "ENSEMBL_MART_ENSEMBL", 
@@ -300,12 +335,13 @@ length(dux4_tap<-dux4_tap[!dux4_tap %over% hg19bl])
     ## [1] 134196
 
 ``` r
-dux4_vs_input<-rtracklayer::import("DUX4Dox.bed")
+#dux4_vs_input<-rtracklayer::import("DUX4Dox.bed")
+dux4_vs_input<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed")
 dux4_vs_input<-keepSeqlevels(dux4_vs_input,seqlevels(hg19)[1:24])
 length(dux4_vs_input<-dux4_vs_input[!dux4_vs_input %over% hg19bl])
 ```
 
-    ## [1] 12674
+    ## [1] 31544
 
 ``` r
 dux4_vs_flag<-rtracklayer::import("../chip/DUX4_vs_flag_pe5_peaks.bed")
@@ -325,7 +361,7 @@ mean(dux4_vs_flag[dux4_vs_flag$score > 40] %over% dux4_tap)
 mean(dux4_vs_input[dux4_vs_input$score > 40] %over% dux4_tap)
 ```
 
-    ## [1] 0.1731892
+    ## [1] 0.17623
 
 ``` r
 mean(dux4_tap %over% dux4_vs_flag)
@@ -339,12 +375,6 @@ mean(dux4_tap %over% dux4_vs_flag)
 load("tss.rdata")
 dux4_vs_flag_anno <- annotatePeakInBatch(dux4_vs_flag, AnnotationData=tss, output="nearest", maxgap=100L)
 summary(dux4_vs_flag_anno$shortestDistance)
-```
-
-    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##       0    8449   24770   45740   58680 2214000
-
-``` r
 #res$peak10kb<-rownames(res) %in% unique(dux4_vs_flag_anno$feature)
 res$peak10kb<-"> 50kb"
 overs<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$insideFeature=="overlapStart",]$feature)
@@ -359,18 +389,11 @@ res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
 res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
 res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
 table(res$peak10kb)
-```
 
-    ## 
-    ##          < 10Kb          > 50kb          < 50Kb           < 5Kb 
-    ##             367           16490             276            1338 
-    ## Overlap's Start 
-    ##             186
-
-``` r
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
-res %>% 
+#pdf(file="121515_volcano.pdf",width=8.5,height=6,colormodel="cmyk")
+(volcano<-res %>% 
   mutate(mlogp=-1*log10(padj)) %>% 
   mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
   ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
@@ -380,10 +403,143 @@ res %>%
   ylab("-log10(Adjusted P Value)") +
  # scale_alpha_continuous(range = c(1.0, 1.0))+
   theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank())
+                     panel.grid.minor=element_blank()))
+
+#ggsave(file="121515_volcano.svg",plot=volcano,width=8.5,height=6)
+save(volcano,file="volcano.rdata")
+#dev.off()
 ```
 
-![](README_files/figure-markdown_github/volcano_plot-1.png)
+``` r
+#tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
+load("tss.rdata")
+length(dux4_vs_input)
+```
+
+    ## [1] 31544
+
+``` r
+dux4_vs_input_anno <- annotatePeakInBatch(dux4_vs_input, AnnotationData=tss, output="nearest", maxgap=100L)
+summary(dux4_vs_input_anno$shortestDistance)
+```
+
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    ##       0    7986   23840   44820   57390  669300
+
+``` r
+#res$peak10kb<-rownames(res) %in% unique(dux4_vs_flag_anno$feature)
+res$peak10kb<-"> 50kb"
+overs<-unique(dux4_vs_input_anno[dux4_vs_input_anno$insideFeature=="overlapStart",]$feature)
+fivekb<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 5000,]$feature)
+fivekb<-fivekb[!fivekb %in% overs]
+tenkb<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 10000,]$feature)
+tenkb<-tenkb[!(tenkb %in% fivekb) & !(tenkb %in% overs)]
+fiftykb<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 50000,]$feature)
+fiftykb<-tenkb[!(fiftykb %in% tenkb) & !(fiftykb %in% fivekb) & !(fiftykb %in% overs)]
+res[rownames(res) %in% overs,"peak10kb"]<-"Overlap's Start"
+res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
+res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
+res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
+table(res$peak10kb)
+```
+
+    ## 
+    ##          < 10Kb          > 50kb          < 50Kb           < 5Kb 
+    ##             424           16000             284            1660 
+    ## Overlap's Start 
+    ##             289
+
+``` r
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+gg1<-res %>% 
+  mutate(mlogp=-1*log10(padj)) %>% 
+  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
+  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
+  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
+                                    name="Distance to Dux4 Peak") +
+  xlab("DUX4 Induced Log2 Fold Change")+
+  ggtitle("All Genes")+
+  ylab("-log10(Adjusted P Value)") +
+  xlim(c(-3,7)) + ylim(c(0,260)) + 
+  theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+#separate based on DNASE overlap
+#FirstlLoad DNAse data
+dnase<-read.table("ENCFF001BVR.bed",stringsAsFactors=FALSE)
+dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnase$V7,score2=dnase$V8)
+
+dux4_vs_input_anno$dnase <- dux4_vs_input_anno %over% dnase
+overs_dnase<-unique(dux4_vs_input_anno[dux4_vs_input_anno$insideFeature=="overlapStart" & dux4_vs_input_anno$dnase,]$feature)
+overs_nodnase<-unique(dux4_vs_input_anno[dux4_vs_input_anno$insideFeature=="overlapStart" & !dux4_vs_input_anno$dnase,]$feature)
+
+fivekb_dnase<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 5000 & dux4_vs_input_anno$dnase,]$feature)
+fivekb_nodnase<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 5000 & !dux4_vs_input_anno$dnase,]$feature)
+fivekb_dnase<-fivekb_dnase[!fivekb_dnase %in% overs]
+fivekb_nodnase<-fivekb_nodnase[!fivekb_nodnase %in% overs]
+
+tenkb_dnase<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 10000 & dux4_vs_input_anno$dnase,]$feature)
+tenkb_nodnase<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 10000 & !dux4_vs_input_anno$dnase,]$feature)
+tenkb_dnase<-tenkb_dnase[!(tenkb_dnase %in% fivekb) & !(tenkb_dnase %in% overs)]
+tenkb_nodnase<-tenkb_nodnase[!(tenkb_nodnase %in% fivekb) & !(tenkb_nodnase %in% overs)]
+
+fiftykb_dnase<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 50000 & dux4_vs_input_anno$dnase,]$feature)
+fiftykb_nodnase<-unique(dux4_vs_input_anno[dux4_vs_input_anno$shortestDistance < 50000 & !dux4_vs_input_anno$dnase,]$feature)
+fiftykb_dnase<-tenkb[!(fiftykb_dnase %in% tenkb) & !(fiftykb_dnase %in% fivekb) & !(fiftykb_dnase %in% overs)]
+fiftykb_nodnase<-tenkb[!(fiftykb_nodnase %in% tenkb) & !(fiftykb_nodnase %in% fivekb) & !(fiftykb_nodnase %in% overs)]
+
+res$dnase<-NA
+res[rownames(res) %in% overs_dnase,"dnase"]<-TRUE
+res[rownames(res) %in% fivekb_dnase,"dnase"]<-TRUE
+res[rownames(res) %in% tenkb_dnase,"dnase"]<-TRUE
+res[rownames(res) %in% fiftykb_dnase,"dnase"]<-TRUE
+res[rownames(res) %in% overs_nodnase,"dnase"]<-FALSE
+res[rownames(res) %in% fivekb_nodnase,"dnase"]<-FALSE
+res[rownames(res) %in% tenkb_nodnase,"dnase"]<-FALSE
+res[rownames(res) %in% fiftykb_nodnase,"dnase"]<-FALSE
+
+
+gg2<-res %>% 
+  dplyr::filter(peak10kb != "> 50kb" & dnase) %>% 
+  mutate(mlogp=-1*log10(padj)) %>% 
+  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
+  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
+  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
+                                    name="Distance to Dux4 Peak") +
+  xlab("DUX4 Induced Log2 Fold Change")+
+  ggtitle("DNAse Accesible") +
+  ylab("-log10(Adjusted P Value)") +
+  xlim(c(-3,7)) + ylim(c(0,260)) + 
+  theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+gg3<-res %>% 
+  dplyr::filter(peak10kb != "> 50kb" & !dnase) %>% 
+  mutate(mlogp=-1*log10(padj)) %>% 
+  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
+  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
+  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
+                                    name="Distance to Dux4 Peak") +
+  xlab("DUX4 Induced Log2 Fold Change")+
+  ggtitle("DNAse In-accesible") +
+  ylab("-log10(Adjusted P Value)") +
+  xlim(c(-3,7)) + ylim(c(0,260)) + 
+  theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+save(gg1,gg2,gg3,file="011116_volcanos.rdata")
+
+#no Cairo on mesabi
+#ggsave(file="010816_volcano1.svg",device = svglite::svglite,plot=gg1,width=8.5,height=6)
+#ggsave(file="010816_volcano2.svg",device = svglite::svglite,plot=gg2,width=8.5,height=6)
+#ggsave(file="010816_volcano3.svg",device = svglite::svglite,plot=gg3,width=8.5,height=6)
+
+#plot(res$log2FoldChange,-1*log10(res$padj),cex=0.5,pch=16,
+#     xlab="Dux4 induction Log2Fold Change",ylab="-log10(adjusted p-value)")
+#identify(res$log2FoldChange,-1*log10(res$padj),labels=res$hgnc)
+```
 
 Use the rlog to find some high variance genes that aren't likely do to noise.
 =============================================================================
@@ -506,30 +662,47 @@ apply(assays(dux4dox_4k_counts)$counts,2,sum)
 save(dux4dox_1k_counts,dux4dox_4k_counts,file="DUX4_counts.rdata")
 ```
 
+DELETE THIS SECTION
+===================
+
+Create Violin Plot for K27ac
+
+``` r
+load("DUX4_counts.rdata")
+#head(assays(dux4dox_1k_counts)$counts)
+gr<-rowRanges(dux4dox_1k_counts)
+idx<-!gr %over% hg19bl
+allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
+(n<-colSums(allcounts))
+length(gr<-gr[idx])
+gr$k27nd<-log2(allcounts[,2]*10e6/n[2] + 1)
+gr$k27pd<-log2(allcounts[,3]*10e6/n[3] + 1)
+gr$dux4<-log2(allcounts[,1]*10e6/n[1] + 1)
+x<-as.matrix(mcols(gr)[,3:5])
+
+gg_violin<- as.data.frame(mcols(gr)[,3:4]) %>% 
+  gather(condition,log2cpm) %>% 
+#  dplyr::filter(log2cpm > 0) %>%
+  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
+   xlab("Condition") + ylab("Log2(cpm)") + 
+   geom_violin(aes(fill=condition)) + 
+  scale_fill_manual(values=cbPalette[c(7,6)]) +
+   theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+#ggsave(file="010816_violin.svg",device = svglite::svglite,plot=gg_violin,width=8.5,height=6)
+save(gg_violin,file="010816_violin.rdata")
+```
+
+DELETE THIS SECTION
+===================
+
 ``` r
 load("DUX4_counts.rdata")
 
-
 dux4dox_1k<-rowRanges(dux4dox_1k_counts)
 (n<-apply(assays(dux4dox_1k_counts)$counts,2,sum))
-```
 
-    ##          DUX4.R1_trimmed.fastq.hg19.bam 
-    ##                                 3153598 
-    ##   h3k27_nodox.R1_trimmed.fastq.hg19.bam 
-    ##                                  580689 
-    ## h3k27_plusdox.R1_trimmed.fastq.hg19.bam 
-    ##                                 1020129 
-    ##      h3_nodox.R1_trimmed.fastq.hg19.bam 
-    ##                                 4001829 
-    ##    h3_plusdox.R1_trimmed.fastq.hg19.bam 
-    ##                                 3749309 
-    ##   input_nodox.R1_trimmed.fastq.hg19.bam 
-    ##                                  487774 
-    ## input_plusdox.R1_trimmed.fastq.hg19.bam 
-    ##                                  445714
-
-``` r
 x<-which(grepl("input",names(n)))
 temp<-apply(assays(dux4dox_1k_counts)$counts[,x],1,mean)
 dux4dox_1k$input<-log2(temp*10e6/sum(temp)+1)
@@ -544,73 +717,220 @@ dux4dox_1k$dux4<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
 #abline(v=9)
 #clean up
 length(dux4dox_1k<-keepSeqlevels(dux4dox_1k,seqlevels(hg19)[1:24])) #remove small contigs
-```
-
-    ## [1] 31570
-
-``` r
 length(dux4dox_1k<-dux4dox_1k[!dux4dox_1k %over% hg19bl])  #remove black listed regions
-```
-
-    ## [1] 31545
-
-``` r
 length(dux4dox_1k<-dux4dox_1k[dux4dox_1k$input < 9])  # remove regions with excessive reads in input 
-```
 
-    ## [1] 30843
-
-``` r
 #Load DNAse data
-
-dnase<-read.table("ENCFF001BVR.bed",stringsAsFactors=FALSE)
-dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnase$V7,score2=dnase$V8)
+#dnase<-read.table("ENCFF001BVR.bed",stringsAsFactors=FALSE)
+#dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnase$V7,score2=dnase$V8)
 
 dux4dox_1k$dnase_overlap <- dux4dox_1k %over% dnase
 ```
 
-Analyze ChIP Data
-=================
+New Section
 
 ``` r
-h3k27<-new("fileset", filename=c( "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam",
-                                  "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"),
-           labels=c("H3K27ac -Dox","H3K27ac +Dox"))
-(h3k27<-countFileset(h3k27))
+load("filesets.rdata")
+load("DUX4_counts.rdata")
 
-DUX4<-new("fileset",filename=c("../chip/flag_s95_nodox.R1_trimmed.fastq.hg19.bam",
-                               "../chip/DUX4.R1_trimmed.fastq.hg19.bam"),
-           labels=c("Flag -Dox","Flag +Dox"))
-(DUX4<-countFileset(DUX4))
-
-H3<-new("fileset", filename=c( "../chip/h3_nodox.R1_trimmed.fastq.hg19.bam",
-                                  "../chip//h3_plusdox.R1_trimmed.fastq.hg19.bam"),
-           labels=c("H3 -Dox","H3 +Dox"))
-(H3<-countFileset(H3))
-
-#h3k4<-new("fileset",filename=c("../chip/h3k4me_s91_nodox.R1_trimmed.fastq.hg19.bam",
-#           "../chip/h3k4me_s92_plusdox.R1_trimmed.fastq.hg19.bam"),
-#           labels=c("H3K4me3 -Dox","H3K4me3 +Dox"))
-#(h3k4<-countFileset(h3k4))
-#
-#p300<-new("fileset",filename=c("../chip/p300_s93_nodox.R1_trimmed.fastq.hg19.bam",
-#          "../chip/p300_s94_plusdox.R1_trimmed.fastq.hg19.bam"),
-#           labels=c("P300 -Dox","P300 +Dox"))
-#(p300<-countFileset(p300))
-
-#save(h3k27,H3,h3k4,p300,DUX4,file="filesets.rdata")
-save(h3k27,H3,DUX4,file="filesets.rdata")
+head(assays(dux4dox_1k_counts)$counts)
 ```
+
+    ##      DUX4.R1_trimmed.fastq.hg19.bam h3k27_nodox.R1_trimmed.fastq.hg19.bam
+    ## [1,]                             62                                     0
+    ## [2,]                            107                                     2
+    ## [3,]                             97                                    29
+    ## [4,]                             82                                    13
+    ## [5,]                             61                                     1
+    ## [6,]                             59                                   112
+    ##      h3k27_plusdox.R1_trimmed.fastq.hg19.bam
+    ## [1,]                                      21
+    ## [2,]                                      20
+    ## [3,]                                      34
+    ## [4,]                                      36
+    ## [5,]                                      11
+    ## [6,]                                      47
+    ##      h3_nodox.R1_trimmed.fastq.hg19.bam
+    ## [1,]                                154
+    ## [2,]                                137
+    ## [3,]                                131
+    ## [4,]                                123
+    ## [5,]                                157
+    ## [6,]                                 79
+    ##      h3_plusdox.R1_trimmed.fastq.hg19.bam
+    ## [1,]                                  166
+    ## [2,]                                  112
+    ## [3,]                                  125
+    ## [4,]                                  114
+    ## [5,]                                  159
+    ## [6,]                                   86
+    ##      input_nodox.R1_trimmed.fastq.hg19.bam
+    ## [1,]                                    10
+    ## [2,]                                    24
+    ## [3,]                                    10
+    ## [4,]                                    10
+    ## [5,]                                    13
+    ## [6,]                                    19
+    ##      input_plusdox.R1_trimmed.fastq.hg19.bam
+    ## [1,]                                      14
+    ## [2,]                                      25
+    ## [3,]                                      16
+    ## [4,]                                       5
+    ## [5,]                                      12
+    ## [6,]                                      10
+
+``` r
+gr<-rowRanges(dux4dox_1k_counts)
+head(gr)
+```
+
+    ## GRanges object with 6 ranges and 2 metadata columns:
+    ##       seqnames             ranges strand |        name     score
+    ##          <Rle>          <IRanges>  <Rle> | <character> <numeric>
+    ##   [1]     chr1 [  42229,   43229]      * | MACS_peak_1        11
+    ##   [2]     chr1 [  43513,   44513]      * | MACS_peak_2        19
+    ##   [3]     chr1 [ 668733,  669733]      * | MACS_peak_3        28
+    ##   [4]     chr1 [ 672134,  673134]      * | MACS_peak_4        28
+    ##   [5]     chr1 [ 830556,  831556]      * | MACS_peak_5        11
+    ##   [6]     chr1 [1310241, 1311241]      * | MACS_peak_6        16
+    ##   -------
+    ##   seqinfo: 40 sequences from an unspecified genome; no seqlengths
+
+``` r
+idx<-!keepSeqlevels(gr,seqlevels(hg19)[1:24]) %over% hg19bl
+allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
+(n<-colSums(allcounts))
+```
+
+    ##          DUX4.R1_trimmed.fastq.hg19.bam 
+    ##                                 3145389 
+    ##   h3k27_nodox.R1_trimmed.fastq.hg19.bam 
+    ##                                  580100 
+    ## h3k27_plusdox.R1_trimmed.fastq.hg19.bam 
+    ##                                 1019127 
+    ##      h3_nodox.R1_trimmed.fastq.hg19.bam 
+    ##                                 3988193 
+    ##    h3_plusdox.R1_trimmed.fastq.hg19.bam 
+    ##                                 3736135 
+    ##   input_nodox.R1_trimmed.fastq.hg19.bam 
+    ##                                  486408 
+    ## input_plusdox.R1_trimmed.fastq.hg19.bam 
+    ##                                  444400
+
+``` r
+length(gr<-gr[idx])
+```
+
+    ## [1] 31588
+
+``` r
+gr$k27nd<-log2(allcounts[,2]*1e6/h3k27@count[1] + 1)
+gr$k27pd<-log2(allcounts[,3]*1e6/h3k27@count[2] + 1)
+gr$input<-log2(allcounts[,7]*1e6/DUX4i@count[1] + 1)
+gr$dux4<-log2(allcounts[,1]*1e6/DUX4i@count[2] + 1)
+
+#Filter ranges with 'outlier' input counts
+(cutoff <-quantile(as.numeric(gr$input), 3/4)+1.5*IQR(as.numeric(gr$input)))
+```
+
+    ##       75% 
+    ## 0.8244891
+
+``` r
+length(gr<-gr[gr$input < cutoff])
+```
+
+    ## [1] 31042
+
+``` r
+gg_violin<- as.data.frame(mcols(gr)[,3:4]) %>% 
+  gather(condition,log2cpm) %>% 
+#  dplyr::filter(log2cpm > 0) %>%
+  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
+   xlab("Condition") + ylab("Log2(cpm)") + 
+   geom_violin(aes(fill=condition)) + 
+  scale_fill_manual(values=cbPalette[c(7,6)]) +
+   theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+#ggsave(file="011916_violin.svg",device = svglite::svglite,plot=gg_violin,width=8.5,height=6)
+save(gg_violin,file="011916_violin.rdata")
+
+#Order by DUX4 peak score
+gr<-gr[with(gr,order(-score))]
+
+#Add a logical to indicated DNAse Overlap
+gr$dnase_overlap <- gr %over% dnase
+
+length(dux4dox_1k <- gr)
+```
+
+    ## [1] 31042
+
+``` r
+length(dux4dox_1k_dnase <- gr[gr$dnase_overlap])
+```
+
+    ## [1] 12912
+
+``` r
+length(dux4dox_1k_nodnase <- gr[!gr$dnase_overlap])
+```
+
+    ## [1] 18130
+
+Measure Overlap with Geng et al 2012 Fibroblast Data
+====================================================
+
+``` r
+ts<-read.csv("GSM837613_Dux4.full.peak.csv",stringsAsFactors=F)
+tsGR<-GRanges(seqnames=ts$chr,IRanges(start=ts$start,end=ts$end),max.cov=ts$max.cov,pval=ts$pval)
+
+hg18ToHg19<-import.chain("hg18ToHg19.over.chain")
+length(tsGR_hg19<-unlist(liftOver(tsGR,hg18ToHg19)))
+```
+
+    ## [1] 62053
+
+``` r
+export(tsGR_hg19,"tsGR_hg19.bed")
+
+length(dux4_vs_input<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed"))
+```
+
+    ## [1] 31613
+
+``` r
+length(temp<-dux4_vs_input[dux4_vs_input$name %in% gr$name])
+```
+
+    ## [1] 31042
+
+``` r
+mean(temp %over% tsGR_hg19)
+```
+
+    ## [1] 0.1067264
+
+``` r
+#Compare to MACS calls of Fibroblast DUX4 ChIP data
+dux4_tap<-rtracklayer::import("../chip/dux4_fl_pe5_peaks.bed")
+dux4_tap<-keepSeqlevels(dux4_tap,seqlevels(hg19)[1:24])
+length(dux4_tap<-dux4_tap[!dux4_tap %over% hg19bl])
+```
+
+    ## [1] 134196
+
+``` r
+mean(temp %over% dux4_tap)
+```
+
+    ## [1] 0.1748921
 
 ``` r
 load("filesets.rdata")
 
 length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE])
-```
-
-    ## [1] 12846
-
-``` r
 #length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE & dux4dox_1k$score > 35])
 #temp<-sample(temp,500)
 temp<-temp[with(temp,order(-score))]
@@ -627,22 +947,8 @@ temp<-temp[with(temp,order(-score))]
 benchplot(twister(temp,dataset=H3,pad = 3500,ord=0,window=1,color="darkgreen"))
 ```
 
-![](README_files/figure-markdown_github/Tornado_Plots_3-1.png)
-
-    ##        step user.self sys.self  elapsed
-    ## 1 construct  1155.813   72.198 1361.825
-    ## 2     build     0.053    0.000    0.053
-    ## 3    render     0.108    0.000    0.109
-    ## 4      draw     0.068    0.000    0.067
-    ## 5     TOTAL  1156.042   72.198 1362.054
-
 ``` r
 length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
-```
-
-    ## [1] 17997
-
-``` r
 #length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE & dux4dox_1k$score > 35])
 #temp<-sample(temp,500)
 temp2<-temp2[with(temp2,order(-score))]
@@ -657,40 +963,320 @@ temp2<-temp2[with(temp2,order(-score))]
 benchplot(twister(temp,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen"))
 ```
 
-![](README_files/figure-markdown_github/Tornado_Plots_5-1.png)
-
-    ##        step user.self sys.self elapsed
-    ## 1 construct   367.622      2.7 401.109
-    ## 2     build     0.050      0.0   0.050
-    ## 3    render     0.101      0.0   0.102
-    ## 4      draw     0.065      0.0   0.064
-    ## 5     TOTAL   367.838      2.7 401.325
-
 ``` r
 benchplot(twister(temp2,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen"))
 ```
 
-![](README_files/figure-markdown_github/Tornado_Plots_6-1.png)
-
-    ##        step user.self sys.self elapsed
-    ## 1 construct   577.277    2.536 590.314
-    ## 2     build     0.052    0.000   0.052
-    ## 3    render     0.104    0.001   0.105
-    ## 4      draw     0.064    0.000   0.064
-    ## 5     TOTAL   577.497    2.537 590.535
+Figure 5b
+=========
 
 ``` r
-benchplot(twister(temp2,dataset=H3,pad = 3500,ord=0,window=1,color="blue"))
+benchplot(dux4_total<-twister(dux4dox_1k,dataset=DUX4i,pad = 3500,ord=0,window=1,ya=c(12,16)))
+benchplot(h3k27ac_total<-twister(dux4dox_1k,dataset=h3k27,pad = 3500,ord=0,window=1,ya=c(12,16)))
+save(dux4_total,h3k27ac_total,file="gg_total.rdata")
 ```
 
-![](README_files/figure-markdown_github/Tornado_Plots_7-1.png)
+DUX4
+====
 
-    ##        step user.self sys.self  elapsed
-    ## 1 construct  1529.370   45.023 1691.613
-    ## 2     build     0.052    0.000    0.053
-    ## 3    render     0.106    0.000    0.106
-    ## 4      draw     0.066    0.000    0.066
-    ## 5     TOTAL  1529.594   45.023 1691.838
+``` r
+benchplot(dux4_dnase<-twister(temp,dataset=DUX4i,pad = 3500,ord=0,window=1,ya=c(12,16)))
+benchplot(dux4_nodnase<-twister(temp2,dataset=DUX4i,pad = 3500,ord=0,window=1,ya=c(12,16)))
+#ggsave(file="121815_dux4i_dnase.svg",plot=dux4_dnase,width=8.5,height=6)
+#ggsave(file="121815_dux4i_nodnase.svg",plot=dux4_nodnase,width=8.5,height=6)
+save(dux4_dnase,dux4_nodnase,file="gg_dux4i.rdata")
+```
+
+H3
+==
+
+``` r
+benchplot(h3_dnase<-twister(temp,dataset=H3,pad = 3500,ord=0,window=1,ya=c(13,15)))
+benchplot(h3_nodnase<-twister(temp2,dataset=H3,pad = 3500,ord=0,window=1,ya=c(13,15)))
+#ggsave(file="121815_h3_dnase.svg",plot=h3_dnase,width=8.5,height=6)
+#ggsave(file="121815_h3_nodnase.svg",plot=h3_nodnase,width=8.5,height=6)
+save(h3_dnase,h3_nodnase,file="gg_h3.rdata")
+```
+
+H3K4me3
+=======
+
+``` r
+benchplot(h3k4me3_dnase<-twister(temp,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16)))
+benchplot(h3k4me3_nodnase<-twister(temp2,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16)))
+ggsave(file="010616_h3k4me3_dnase.svg",plot=h3k4me3_dnase,width=8.5,height=6)
+ggsave(file="010616_h3k4me3_nodnase.svg",plot=h3k4me3_nodnase,width=8.5,height=6)
+save(h3k4me3_dnase,h3k4me3_nodnase,file="gg_h3k4me3.rdata")
+```
+
+H3K27ac
+=======
+
+``` r
+benchplot(h3k27ac_dnase<-twister(temp,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16)))
+benchplot(h3k27ac_nodnase<-twister(temp2,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16)))
+#ggsave(file="121815_h3k27ac_dnase.svg",plot=h3k27ac_dnase,width=8.5,height=6)
+#ggsave(file="121815_h3k27ac_nodnase.svg",plot=h3k27ac_nodnase,width=8.5,height=6)
+save(h3k27ac_dnase,h3k27ac_nodnase,file="gg_h3k27ac.rdata")
+```
+
+H3K27ac Tornado
+===============
+
+``` r
+benchplot(h3k27acT_dnase<-tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+benchplot(h3k27acT_nodnase<-tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
+ggsave(file="011216_h3k27ac_Tornado_dnase.png",plot=h3k27acT_dnase,width=5,height=8)
+ggsave(file="011216_h3k27ac_Tornado_nodnase.png",plot=h3k27acT_nodnase,width=5,height=8)
+#save(h3k27acT_dnase,h3k27acT_nodnase,file="gg_h3k27acT.rdata")
+```
+
+H3 Tornado
+==========
+
+``` r
+benchplot(h3T_dnase<-tornado(temp,dataset=H3,pad = 3500,ord=0,window=5,color="darkgoldenrod2"))
+benchplot(h3T_nodnase<-tornado(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="darkgoldenrod2"))
+ggsave(file="011216_h3_Tornado_dnase.png",plot=h3T_dnase,width=5,height=8)
+ggsave(file="011216_h3_Tornado_nodnase.png",plot=h3T_nodnase,width=5,height=8)
+#save(h3k27acT_dnase,h3k27acT_nodnase,file="gg_h3k27acT.rdata")
+```
+
+DNASE Tornado
+=============
+
+``` r
+load("dnaseFS.rdata")
+benchplot(dnaseT_dnase<-tornado(temp,dataset=dnaseFS,pad = 3500,ord=0,window=5,color="cyan"))
+benchplot(dnaseT_nodnase<-tornado(temp2,dataset=dnaseFS,pad = 3500,ord=0,window=5,color="cyan"))
+ggsave(file="011216_dnaseTornado_dnase.png",plot=dnaseT_dnase,width=5,height=8)
+ggsave(file="011216_dnaseTornado_nodnase.png",plot=dnaseT_nodnase,width=5,height=8)
+```
+
+DUX4 Tornado
+============
+
+``` r
+benchplot(dux4T_dnase<-tornado(temp,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue"))
+benchplot(dux4T_nodnase<-tornado(temp2,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue"))
+ggsave(file="122915_dux4T_Tornado_dnase.png",plot=dux4T_dnase,width=5,height=8)
+ggsave(file="122915_dux4T_Tornado_nodnase.png",plot=dux4T_nodnase,width=5,height=8)
+#save(h3k27acT_dnase,h3k27acT_nodnase,file="gg_h3k27acT.rdata")
+```
+
+H3K4me3 Tornado
+===============
+
+``` r
+benchplot(h3k4me3T_dnase<-tornado(temp,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
+benchplot(h3k4me3T_nodnase<-tornado(temp2,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
+ggsave(file="122915_h3k4me3_Tornado_dnase.png",plot=h3k4me3T_dnase,width=5,height=8)
+ggsave(file="122915_h3k4me3_Tornado_nodnase.png",plot=h3k4me3T_nodnase,width=5,height=8)
+#save(h3k4me3T_dnase,h3k4me3T_nodnase,file="gg_h3k4me3T.rdata")
+```
+
+Analyze H3K27ac Peaks that do not overlap DUX4 sites
+====================================================
+
+``` r
+length(k27pd<-import("../chip/h3k27ac_plusdox_pe5_peaks.bed"))
+length(k27nd<-import("../chip/h3k27ac_nodox_pe5_peaks.bed"))
+length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
+length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
+length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
+
+#export(k27r,"k27r.bed")
+
+#Standerdize the size
+summary(width(k27r))
+summary(width(center(k27r)+2000))
+#export(center(k27r)+2000,"k27r_4k.bed")
+```
+
+Count reads
+===========
+
+``` r
+(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+(fls2 <- list.files("../chip", pattern=glob2rx("DUX*hg19.bam$"),full=TRUE))
+bamlst <- BamFileList(c(fls,fls2),yieldSize = 1e6)
+detectCores()
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(h3k27_counts <- summarizeOverlaps(center(k27r)+2000,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+save(h3k27_counts,file="k27r_4k_DUX4_counts.rdata")
+```
+
+DELETE THIS SECTION
+===================
+
+``` r
+load("k27r_4k_DUX4_counts.rdata")
+(n<-apply(assays(h3k27_counts)$counts,2,sum))
+length(k27r_4k<-rowRanges(h3k27_counts))
+
+#Add counts to metadata of peaklist
+(x<-which(grepl("h3k27_nodox",names(n))))
+k27r_4k$k27nd<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
+(x<-which(grepl("h3k27_plusdox",names(n))))
+k27r_4k$k27pd<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
+(x<-which(grepl("DUX4",names(n))))
+k27r_4k$dux4<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
+
+head(k27r_4k)
+#clean up
+length(k27r_4k <- keepSeqlevels(k27r_4k,seqlevels(hg19)[1:24]))
+length(k27r_4k <- k27r_4k[!k27r_4k %over% hg19bl])
+
+#quantro::matdensity(as.matrix(mcols(k27r_4k)[,c(1:3)]))
+
+#length(dux4peaks<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed"))
+length(k27r_4k_noDux<-k27r_4k[!(k27r_4k + 10000 )%over% dux4_vs_input])  #any peaks within 10kb
+length(k27r_4k_noDux_dnase<-k27r_4k_noDux[k27r_4k_noDux %over% dnase])
+
+#quantro::matdensity(as.matrix(mcols(k27r_4k_noDux_dnase)[,c(1:2)]))
+
+length(k27r_4k_noDux_dnase_HIGH<-k27r_4k_noDux_dnase[k27r_4k_noDux_dnase$k27nd > 5 | k27r_4k_noDux_dnase$k27pd > 5])
+
+k27r_4k_noDux_dnase_HIGH$ratio <- k27r_4k_noDux_dnase_HIGH$k27pd - k27r_4k_noDux_dnase_HIGH$k27nd
+
+k27r_4k_noDux_dnase_HIGH <- k27r_4k_noDux_dnase_HIGH[with(k27r_4k_noDux_dnase_HIGH,order(-ratio))]
+wls(head(k27r_4k_noDux_dnase_HIGH,20))
+
+plot(k27r_4k_noDux_dnase_HIGH$ratio,k27r_4k_noDux_dnase_HIGH$dux4,cex=0.5,pch=16)
+abline(v=0,col="red")
+
+#temp<-sample(k27r_4k_noDux_dnase_HIGH,1000)
+temp<-k27r_4k_noDux_dnase_HIGH
+temp<-temp[with(temp,order(-ratio))]
+#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="darkgreen"))
+#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue"))
+
+#ggsave(file="011816_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
+#ggsave(file="011816_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
+```
+
+New K27ac plan
+==============
+
+``` r
+length(k27pd<-import("../chip/h3k27ac_plusdox_pe5_peaks.bed"))
+```
+
+    ## [1] 170981
+
+``` r
+length(k27nd<-import("../chip/h3k27ac_nodox_pe5_peaks.bed"))
+```
+
+    ## [1] 136827
+
+``` r
+length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
+```
+
+    ## [1] 84305
+
+``` r
+length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
+```
+
+    ## [1] 65484
+
+``` r
+length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
+```
+
+    ## [1] 114529
+
+``` r
+k27r<-keepSeqlevels(k27r,seqlevels(hg19)[1:24])
+mean(idx<-!k27r %over% hg19bl)
+```
+
+    ## [1] 0.9997641
+
+``` r
+k27r<-k27r[idx]
+summary(width(k27r))
+```
+
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    ##      68     193     424    1227    1574   75390
+
+``` r
+summary(width(center(k27r)+1000))
+```
+
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    ##    2001    2001    2001    2001    2001    2001
+
+``` r
+k27rc_2k<-center(k27r)+1000
+
+length(dux4_vs_input)
+```
+
+    ## [1] 31613
+
+``` r
+length(k27rc_2k_noDux<-k27rc_2k[!(k27rc_2k+10000) %over% dux4_vs_input])
+```
+
+    ## [1] 68505
+
+``` r
+(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+```
+
+    ## [1] "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam"  
+    ## [2] "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"
+
+``` r
+bamlst <- BamFileList(fls,yieldSize = 1e5)
+detectCores()
+```
+
+    ## [1] 32
+
+``` r
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(h3k27_counts <- summarizeOverlaps(k27rc_2k_noDux,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+```
+
+    ##    user  system elapsed 
+    ##   0.068   0.084  72.627
+
+``` r
+n<-apply(assays(h3k27_counts)$counts,2,sum)
+x<-1e6*assays(h3k27_counts)$counts
+x[,1]<-x[,1]/h3k27@count[1]
+x[,2]<-x[,2]/h3k27@count[2]
+
+x<-log2(x+1)
+
+gg_violin2<-as.data.frame(x) %>% 
+  gather(condition,log2cpm) %>% 
+  #dplyr::filter(log2cpm > 0) %>%
+  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at Non-DUX4 Sites") +
+   xlab("Condition") + ylab("Log2(cpm)") + 
+   geom_violin(aes(fill=condition)) + 
+  scale_fill_manual(values=cbPalette[c(7,6)]) +
+   theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+save(gg_violin2,file="011416_k27rc_2k_noDux_violin.rdata")
+
+
+#now make Tornado Plots
+temp<-k27rc_2k_noDux
+temp$ratio<-x[,2]-x[,1]
+temp<-temp[with(temp,order(-ratio))]
+#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 4500,ord=0,window=5,color="darkgreen"))
+#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 4500,ord=0,window=5,color="blue"))
+
+#ggsave(file="011416_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
+#ggsave(file="011416_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
+```
 
 ``` r
 load("h3k27_counts.rdata")
@@ -756,7 +1342,7 @@ sessionInfo()
     ## [15] Biostrings_2.36.4                 XVector_0.8.0                    
     ## [17] BiocParallel_1.2.22               pheatmap_1.0.7                   
     ## [19] ggplot2_1.0.1                     DESeq2_1.8.2                     
-    ## [21] RcppArmadillo_0.6.200.2.0         Rcpp_0.12.1                      
+    ## [21] RcppArmadillo_0.6.200.2.0         Rcpp_0.12.2                      
     ## [23] GenomicRanges_1.20.8              GenomeInfoDb_1.4.3               
     ## [25] IRanges_2.2.9                     S4Vectors_0.6.6                  
     ## [27] BiocGenerics_0.14.0              
