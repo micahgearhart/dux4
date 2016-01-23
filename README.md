@@ -323,29 +323,61 @@ save(dux4_total,h3k27ac_total,file=paste0(ts,"_figure5c.rdata"))
 #tbl.rmsk <- getTable(ucscTableQuery(mySession, track="rmsk",table="rmsk"))
 #save(tbl.rmsk,file="rmsk_full_hg19.rdata")
 load("rmsk_full_hg19.rdata")
-class(tbl.rmsk)
-```
-
-    ## [1] "data.frame"
-
-``` r
- #tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
+ tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
  maLR<-GRanges(seqnames=tbl.rmsk$genoName,ranges=IRanges(start=tbl.rmsk$genoStart,end=tbl.rmsk$genoEnd),strand=tbl.rmsk$strand,name=tbl.rmsk$repName)
  maLR<-keepSeqlevels(maLR,seqnames(hg19)[1:24])
  maLR <- sortSeqlevels(maLR)
  maLR<-sort(maLR,ignore.strand=TRUE)
  #export(maLR,"malR_hg19.bed")
 
+#DNAse
+length(dux4dox_1k_dnase_maLR <- dux4dox_1k_dnase[dux4dox_1k_dnase %over% maLR])
+```
+
+    ## [1] 1570
+
+``` r
+length(dux4dox_1k_dnase_maLR)/length(dux4dox_1k_dnase)
+```
+
+    ## [1] 0.1215264
+
+``` r
+length(dux4dox_1k_dnase_nomaLR <- dux4dox_1k_dnase[!dux4dox_1k_dnase %over% maLR])
+```
+
+    ## [1] 11349
+
+``` r
+length(dux4dox_1k_dnase_nomaLR)/length(dux4dox_1k_dnase)
+```
+
+    ## [1] 0.8784736
+
+``` r
+#NoDNAse
 length(dux4dox_1k_nodnase_maLR <- dux4dox_1k_nodnase[dux4dox_1k_nodnase %over% maLR])
 ```
 
-    ## [1] 15786
+    ## [1] 3246
+
+``` r
+length(dux4dox_1k_nodnase_maLR)/length(dux4dox_1k_nodnase)
+```
+
+    ## [1] 0.1792677
 
 ``` r
 length(dux4dox_1k_nodnase_nomaLR <- dux4dox_1k_nodnase[!dux4dox_1k_nodnase %over% maLR])
 ```
 
-    ## [1] 2321
+    ## [1] 14861
+
+``` r
+length(dux4dox_1k_nodnase_nomaLR)/length(dux4dox_1k_nodnase)
+```
+
+    ## [1] 0.8207323
 
 MaLR H3K4me3
 ============
@@ -358,10 +390,6 @@ save(h3k4me3_dnase,h3k4me3_nodnase_maLR,h3k4me3_nodnase_nomaLR,file=paste0(ts,"_
 grid.arrange(h3k4me3_dnase,h3k4me3_nodnase_maLR,h3k4me3_nodnase_nomaLR,ncol=1)
 ```
 
-    ## Warning: Removed 93 rows containing missing values (geom_path).
-
-![](README_files/figure-markdown_github/h3h4me3_distribution_malR-1.png)
-
 MaLR H3K7Ac
 ===========
 
@@ -373,29 +401,135 @@ save(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,file=paste0(ts,"_figure
 grid.arrange(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,ncol=1)
 ```
 
-![](README_files/figure-markdown_github/h3k27ac_distribution_malR-1.png)
+### Figure 5D
+
+DUX4
+====
+
+``` r
+dux4_dnase <-twister(dux4dox_1k_dnase,dataset=DUX4i,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+dux4_nodnase<-twister(dux4dox_1k_nodnase,dataset=DUX4i,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+save(dux4_dnase,dux4_nodnase,file=paste0(ts,"_figure5d_dux4.rdata"))
+grid.arrange(dux4_dnase,dux4_nodnase,ncol=1)
+```
+
+![](README_files/figure-markdown_github/dux4_distribution-1.png)
+
+H3
+==
+
+``` r
+h3_dnase <-twister(dux4dox_1k_dnase,dataset=H3,pad = 3500,ord=0,window=1,color="blue",ya=c(13,15))
+h3_nodnase<-twister(dux4dox_1k_nodnase,dataset=H3,pad = 3500,ord=0,window=1,color="blue",ya=c(13,15))
+save(h3_dnase,h3_nodnase,file=paste0(ts,"_figure5d_h3.rdata"))
+grid.arrange(h3_dnase,h3_nodnase,ncol=1)
+```
+
+![](README_files/figure-markdown_github/h3_distribution-1.png)
+
+H3K27Ac
+=======
+
+``` r
+h3k27ac_dnase <-twister(dux4dox_1k_dnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+h3k27ac_nodnase<-twister(dux4dox_1k_nodnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+save(h3k27ac_dnase,h3k27ac_nodnase,file=paste0(ts,"_figure5d_h3k27.rdata"))
+grid.arrange(h3k27ac_dnase,h3k27ac_nodnase,ncol=1)
+```
+
+![](README_files/figure-markdown_github/h3k27ac_distribution-1.png)
+
+H3K4me3
+=======
+
+``` r
+h3k4me3_dnase <-twister(dux4dox_1k_dnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+h3k4me3_nodnase<-twister(dux4dox_1k_nodnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+save(h3k4me3_dnase,h3k4me3_nodnase,file=paste0(ts,"_figure5d_h3k4.rdata"))
+grid.arrange(h3k4me3_dnase,h3k4me3_nodnase,ncol=1)
+```
+
+![](README_files/figure-markdown_github/h3k4me3_distribution-1.png)
 
 ### Analyze K27ac at non-DUX4 Sites
 
 ``` r
 length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
+```
+
+    ## [1] 84305
+
+``` r
 length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
+```
+
+    ## [1] 65484
+
+``` r
 length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
+```
+
+    ## [1] 114529
+
+``` r
 k27r<-keepSeqlevels(k27r,seqlevels(hg19)[1:24])
 mean(idx<-!k27r %over% hg19bl)
+```
+
+    ## [1] 0.9997641
+
+``` r
 k27r<-k27r[idx]
 summary(width(k27r))
+```
+
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    ##      68     193     424    1227    1574   75390
+
+``` r
 summary(width(center(k27r)+1000))
+```
+
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    ##    2001    2001    2001    2001    2001    2001
+
+``` r
 k27rc_2k<-center(k27r)+1000
 
 length(dux4_vs_input)
+```
+
+    ## [1] 31026
+
+``` r
 length(k27rc_2k_noDux<-k27rc_2k[!(k27rc_2k+10000) %over% dux4_vs_input])
+```
+
+    ## [1] 69038
+
+``` r
 (fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+```
+
+    ## [1] "../chip/h3k27_nodox.R1_trimmed.fastq.hg19.bam"  
+    ## [2] "../chip/h3k27_plusdox.R1_trimmed.fastq.hg19.bam"
+
+``` r
 bamlst <- BamFileList(fls,yieldSize = 1e5)
 detectCores()
+```
+
+    ## [1] 32
+
+``` r
 BiocParallel::register(MulticoreParam(workers=detectCores()))
 system.time(h3k27_counts <- summarizeOverlaps(k27rc_2k_noDux,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+```
 
+    ##    user  system elapsed 
+    ##   0.089   1.271  81.303
+
+``` r
 n<-apply(assays(h3k27_counts)$counts,2,sum)
 x<-1e6*assays(h3k27_counts)$counts
 x[,1]<-x[,1]/h3k27@count[1]
@@ -413,7 +547,7 @@ gg_violin2<-as.data.frame(x) %>%
    theme_bw() + theme(panel.grid.major=element_blank(),
                      panel.grid.minor=element_blank())
 
-save(gg_violin2,file="011416_k27rc_2k_noDux_violin.rdata")
+save(gg_violin2,file=paste0(ts,"_figure6a_violin2.rdata"))
 
 
 #now make Tornado Plots

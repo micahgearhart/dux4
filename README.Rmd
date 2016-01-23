@@ -193,20 +193,30 @@ save(dux4_total,h3k27ac_total,file=paste0(ts,"_figure5c.rdata"))
 #tbl.rmsk <- getTable(ucscTableQuery(mySession, track="rmsk",table="rmsk"))
 #save(tbl.rmsk,file="rmsk_full_hg19.rdata")
 load("rmsk_full_hg19.rdata")
-class(tbl.rmsk)
- #tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
+ tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
  maLR<-GRanges(seqnames=tbl.rmsk$genoName,ranges=IRanges(start=tbl.rmsk$genoStart,end=tbl.rmsk$genoEnd),strand=tbl.rmsk$strand,name=tbl.rmsk$repName)
  maLR<-keepSeqlevels(maLR,seqnames(hg19)[1:24])
  maLR <- sortSeqlevels(maLR)
  maLR<-sort(maLR,ignore.strand=TRUE)
  #export(maLR,"malR_hg19.bed")
 
+#DNAse
+length(dux4dox_1k_dnase_maLR <- dux4dox_1k_dnase[dux4dox_1k_dnase %over% maLR])
+length(dux4dox_1k_dnase_maLR)/length(dux4dox_1k_dnase)
+
+length(dux4dox_1k_dnase_nomaLR <- dux4dox_1k_dnase[!dux4dox_1k_dnase %over% maLR])
+length(dux4dox_1k_dnase_nomaLR)/length(dux4dox_1k_dnase)
+
+#NoDNAse
 length(dux4dox_1k_nodnase_maLR <- dux4dox_1k_nodnase[dux4dox_1k_nodnase %over% maLR])
+length(dux4dox_1k_nodnase_maLR)/length(dux4dox_1k_nodnase)
+
 length(dux4dox_1k_nodnase_nomaLR <- dux4dox_1k_nodnase[!dux4dox_1k_nodnase %over% maLR])
+length(dux4dox_1k_nodnase_nomaLR)/length(dux4dox_1k_nodnase)
 ```
 
 # MaLR H3K4me3
-```{r h3h4me3_distribution_malR,eval=T,fig.height=10,fig.width=6}
+```{r h3k4me3_distribution_malR,eval=F,fig.height=10,fig.width=6}
 h3k4me3_dnase <-twister(dux4dox_1k_dnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
 h3k4me3_nodnase_maLR<-twister(dux4dox_1k_nodnase_maLR,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
 h3k4me3_nodnase_nomaLR<-twister(dux4dox_1k_nodnase_nomaLR,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
@@ -215,7 +225,7 @@ grid.arrange(h3k4me3_dnase,h3k4me3_nodnase_maLR,h3k4me3_nodnase_nomaLR,ncol=1)
 ```
 
 # MaLR H3K7Ac
-```{r h3k27ac_distribution_malR, eval=T,fig.height=10,fig.width=6}
+```{r h3k27ac_distribution_malR, eval=F,fig.height=10,fig.width=6}
 h3k27_dnase <-twister(dux4dox_1k_dnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
 h3k27_nodnase_maLR<-twister(dux4dox_1k_nodnase_maLR,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
 h3k27_nodnase_nomaLR<-twister(dux4dox_1k_nodnase_nomaLR,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
@@ -223,8 +233,43 @@ save(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,file=paste0(ts,"_figure
 grid.arrange(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,ncol=1)
 ```
 
+### Figure 5D
+
+# DUX4 
+```{r dux4_distribution,eval=T,fig.height=10,fig.width=6}
+dux4_dnase <-twister(dux4dox_1k_dnase,dataset=DUX4i,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+dux4_nodnase<-twister(dux4dox_1k_nodnase,dataset=DUX4i,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+save(dux4_dnase,dux4_nodnase,file=paste0(ts,"_figure5d_dux4.rdata"))
+grid.arrange(dux4_dnase,dux4_nodnase,ncol=1)
+```
+
+# H3
+```{r h3_distribution,eval=T,fig.height=10,fig.width=6}
+h3_dnase <-twister(dux4dox_1k_dnase,dataset=H3,pad = 3500,ord=0,window=1,color="blue",ya=c(13,15))
+h3_nodnase<-twister(dux4dox_1k_nodnase,dataset=H3,pad = 3500,ord=0,window=1,color="blue",ya=c(13,15))
+save(h3_dnase,h3_nodnase,file=paste0(ts,"_figure5d_h3.rdata"))
+grid.arrange(h3_dnase,h3_nodnase,ncol=1)
+```
+
+# H3K27Ac
+```{r h3k27ac_distribution,eval=T,fig.height=10,fig.width=6}
+h3k27ac_dnase <-twister(dux4dox_1k_dnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+h3k27ac_nodnase<-twister(dux4dox_1k_nodnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+save(h3k27ac_dnase,h3k27ac_nodnase,file=paste0(ts,"_figure5d_h3k27.rdata"))
+grid.arrange(h3k27ac_dnase,h3k27ac_nodnase,ncol=1)
+```
+
+# H3K4me3
+```{r h3k4me3_distribution,eval=T,fig.height=10,fig.width=6}
+h3k4me3_dnase <-twister(dux4dox_1k_dnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+h3k4me3_nodnase<-twister(dux4dox_1k_nodnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
+save(h3k4me3_dnase,h3k4me3_nodnase,file=paste0(ts,"_figure5d_h3k4.rdata"))
+grid.arrange(h3k4me3_dnase,h3k4me3_nodnase,ncol=1)
+```
+
+
 ### Analyze K27ac at non-DUX4 Sites
-```{r h27ac_2k,eval=F}
+```{r h27ac_2k,eval=T}
 length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
 length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
 length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
@@ -260,7 +305,7 @@ gg_violin2<-as.data.frame(x) %>%
    theme_bw() + theme(panel.grid.major=element_blank(),
                      panel.grid.minor=element_blank())
 
-save(gg_violin2,file="011416_k27rc_2k_noDux_violin.rdata")
+save(gg_violin2,file=paste0(ts,"_figure6a_violin2.rdata"))
 
 
 #now make Tornado Plots
