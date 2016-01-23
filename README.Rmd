@@ -118,14 +118,21 @@ load("DUX4_counts.rdata")
 head(assays(dux4dox_1k_counts)$counts)
 gr<-rowRanges(dux4dox_1k_counts)
 head(gr)
-idx<-!keepSeqlevels(gr,seqlevels(hg19)[1:24]) %over% hg19bl
-allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
-(n<-colSums(allcounts))
-length(gr<-gr[idx])
+#idx<-!keepSeqlevels(gr,seqlevels(hg19)[1:24]) %over% hg19bl
+#allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
+allcounts<-assays(dux4dox_1k_counts)$counts[,]
+#(n<-colSums(allcounts))
+#length(gr<-gr[idx])
 gr$k27nd<-log2(allcounts[,2]*1e6/h3k27@count[1] + 1)
 gr$k27pd<-log2(allcounts[,3]*1e6/h3k27@count[2] + 1)
 gr$input<-log2(allcounts[,7]*1e6/DUX4i@count[1] + 1)
 gr$dux4<-log2(allcounts[,1]*1e6/DUX4i@count[2] + 1)
+
+#Filter ranges on short Contigs
+length(gr<-keepSeqlevels(gr,seqlevels(hg19)[1:24]))
+
+#Filter ranges that overlap BlackListed Peaks
+length(gr<-gr[!gr %over% hg19bl])
 
 #Filter ranges with 'outlier' input counts
 (cutoff <-quantile(as.numeric(gr$input), 3/4)+1.5*IQR(as.numeric(gr$input)))
@@ -158,6 +165,8 @@ length(dux4dox_1k_nodnase <- gr[!gr$dnase_overlap])
 
 #Also Filter full Length DUX4 Peaks
 length(dux4_vs_input<-dux4_vs_input[dux4_vs_input$name %in% dux4dox_1k$name])
+seqlevels(dux4_vs_input) <- seqlevels(dux4dox_1k)
+length(dux4_vs_input) == length(dux4dox_1k)
 ```
 
 # Measure Overlap with Geng et al 2012 Data
@@ -170,16 +179,52 @@ mean(dux4_vs_input %over% dux4_tap)
 ```
  
 #Figure 5c
-```{r Dux4_h3k27ac_DUX4sites,eval=T}
+```{r Dux4_h3k27ac_DUX4sites,eval=F}
 benchplot(dux4_total<-twister(dux4dox_1k,dataset=DUX4i,pad = 3500,ord=0,window=1,ya=c(12,16)))
 benchplot(h3k27ac_total<-twister(dux4dox_1k,dataset=h3k27,pad = 3500,ord=0,window=1,ya=c(12,16)))
 grid.arrange(dux4_total,h3k27ac_total,ncol=1)
 save(dux4_total,h3k27ac_total,file=paste0(ts,"_figure5c.rdata"))
 ```
 
-################ CLEANED UP ####################
 
+```{r maLR_ERV,eval=T}
+#mySession = browserSession("UCSC")
+#genome(mySession) <- "hg19"
+#tbl.rmsk <- getTable(ucscTableQuery(mySession, track="rmsk",table="rmsk"))
+#save(tbl.rmsk,file="rmsk_full_hg19.rdata")
+load("rmsk_full_hg19.rdata")
+class(tbl.rmsk)
+ tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
+ maLR<-GRanges(seqnames=tbl.rmsk$genoName,ranges=IRanges(start=tbl.rmsk$genoStart,end=tbl.rmsk$genoEnd),strand=tbl.rmsk$strand,name=tbl.rmsk$repName)
+ table(seqnames(maLR))
+ maLR<-keepSeqlevels(maLR,seqnames(hg19)[1:24])
+ maLR <- sortSeqlevels(maLR)
+ maLR<-sort(maLR,ignore.strand=TRUE)
+ #export(maLR,"malR_hg19.bed")
 
+length(dux4dox_1k_nodnase_maLR <- dux4dox_1k_nodnase[dux4dox_1k_nodnase %over% maLR])
+length(dux4dox_1k_nodnase_nomaLR <- dux4dox_1k_nodnase[!dux4dox_1k_nodnase %over% maLR])
+```
+
+# MaLR H3K4me3
+```{r h3h4me3_distribution_malR, eval=F}
+h3k4me3_dnase <-twister(dux4dox_1k_dnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
+h3k4me3_nodnase_maLR<-twister(dux4dox_1k_nodnase_maLR,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
+h3k4me3_nodnase_nomaLR<-twister(dux4dox_1k_nodnase_nomaLR,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
+save(h3k4me3_dnase,h3k4me3_nodnase_maLR,h3k4me3_nodnase_nomaLR,file=paste0(ts,"_figure5d_h3k4_malr.rdata"))
+grid.arrange(h3k4me3_dnase,h3k4me3_nodnase_maLR,h3k4me3_nodnase_nomaLR,ncol=1)
+```
+
+# MaLR H3K7Ac
+```{r h3k27ac_distribution_malR, eval=T}
+h3k27_dnase <-twister(dux4dox_1k_dnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
+h3k27_nodnase_maLR<-twister(dux4dox_1k_nodnase_maLR,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
+h3k27_nodnase_nomaLR<-twister(dux4dox_1k_nodnase_nomaLR,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
+save(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,file=paste0(ts,"_figure5d_h3k27_malr.rdata"))
+grid.arrange(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,ncol=1)
+```
+
+### RNA-Seq Analysis
 ```{r count_hits,eval=F}
 #Use most recent hg19 build
 ensembl_75 = useMart(host = "feb2014.archive.ensembl.org", biomart = "ENSEMBL_MART_ENSEMBL", 
@@ -201,9 +246,7 @@ bamlst <- BamFileList(fls)
 hits <- summarizeOverlaps(ens75,bamlst,mode="Union",singleEnd=FALSE,ignore.strand=TRUE)
 apply(assays(hits)$counts,2,sum)
 save(hits_q4,hits,file="GRCh37_hits.rdata")
-
 ```
-
 
 ```{r DESEQ2,eval=T}
 load("../rna/GRCh37_hits.rdata")
@@ -247,55 +290,7 @@ f[grep("MYOD1",f$hgnc),]
 write.csv(f,file="Supplementary_Table_1.csv",quote=F)
 ```
 
-#Fix this Section 
-```{r overlaps,eval=F}
-mean(dux4_vs_flag[dux4_vs_flag$score > 40] %over% dux4_tap)
-mean(dux4_vs_input[dux4_vs_input$score > 40] %over% dux4_tap)
-mean(dux4_tap %over% dux4_vs_flag)
-```
-
-```{r volcano_plot,eval=F}
-#tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
-#save(tss,file="tss.rdata")
-load("tss.rdata")
-dux4_vs_flag_anno <- annotatePeakInBatch(dux4_vs_flag, AnnotationData=tss, output="nearest", maxgap=100L)
-summary(dux4_vs_flag_anno$shortestDistance)
-#res$peak10kb<-rownames(res) %in% unique(dux4_vs_flag_anno$feature)
-res$peak10kb<-"> 50kb"
-overs<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$insideFeature=="overlapStart",]$feature)
-fivekb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 5000,]$feature)
-fivekb<-fivekb[!fivekb %in% overs]
-tenkb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 10000,]$feature)
-tenkb<-tenkb[!(tenkb %in% fivekb) & !(tenkb %in% overs)]
-fiftykb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 50000,]$feature)
-fiftykb<-tenkb[!(fiftykb %in% tenkb) & !(fiftykb %in% fivekb) & !(fiftykb %in% overs)]
-res[rownames(res) %in% overs,"peak10kb"]<-"Overlap's Start"
-res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
-res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
-res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
-table(res$peak10kb)
-
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
-#pdf(file="121515_volcano.pdf",width=8.5,height=6,colormodel="cmyk")
-(volcano<-res %>% 
-  mutate(mlogp=-1*log10(padj)) %>% 
-  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
-  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
-  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
-                                    name="Distance to Dux4 Peak") +
-  xlab("DUX4 Induced Log2 Fold Change")+
-  ylab("-log10(Adjusted P Value)") +
- # scale_alpha_continuous(range = c(1.0, 1.0))+
-  theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank()))
-
-#ggsave(file="121515_volcano.svg",plot=volcano,width=8.5,height=6)
-save(volcano,file="volcano.rdata")
-#dev.off()
-```
-
-```{r volcano_plot2,eval=F}
+```{r volcano_plot2,eval=T}
 #tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
 load("tss.rdata")
 length(dux4_vs_input)
@@ -394,7 +389,7 @@ gg3<-res %>%
   theme_bw() + theme(panel.grid.major=element_blank(),
                      panel.grid.minor=element_blank())
 
-save(gg1,gg2,gg3,file="011116_volcanos.rdata")
+save(gg1,gg2,gg3,file=paste0(ts,"_figure6c.rdata"))
 
 #no Cairo on mesabi
 #ggsave(file="010816_volcano1.svg",device = svglite::svglite,plot=gg1,width=8.5,height=6)
@@ -406,6 +401,57 @@ save(gg1,gg2,gg3,file="011116_volcanos.rdata")
 #identify(res$log2FoldChange,-1*log10(res$padj),labels=res$hgnc)
 
 ```
+
+################ CLEANED UP ####################
+
+#Fix this Section 
+```{r overlaps,eval=F}
+mean(dux4_vs_flag[dux4_vs_flag$score > 40] %over% dux4_tap)
+mean(dux4_vs_input[dux4_vs_input$score > 40] %over% dux4_tap)
+mean(dux4_tap %over% dux4_vs_flag)
+```
+
+```{r volcano_plot,eval=F}
+#tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
+#save(tss,file="tss.rdata")
+load("tss.rdata")
+dux4_vs_flag_anno <- annotatePeakInBatch(dux4_vs_flag, AnnotationData=tss, output="nearest", maxgap=100L)
+summary(dux4_vs_flag_anno$shortestDistance)
+#res$peak10kb<-rownames(res) %in% unique(dux4_vs_flag_anno$feature)
+res$peak10kb<-"> 50kb"
+overs<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$insideFeature=="overlapStart",]$feature)
+fivekb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 5000,]$feature)
+fivekb<-fivekb[!fivekb %in% overs]
+tenkb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 10000,]$feature)
+tenkb<-tenkb[!(tenkb %in% fivekb) & !(tenkb %in% overs)]
+fiftykb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 50000,]$feature)
+fiftykb<-tenkb[!(fiftykb %in% tenkb) & !(fiftykb %in% fivekb) & !(fiftykb %in% overs)]
+res[rownames(res) %in% overs,"peak10kb"]<-"Overlap's Start"
+res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
+res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
+res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
+table(res$peak10kb)
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+#pdf(file="121515_volcano.pdf",width=8.5,height=6,colormodel="cmyk")
+(volcano<-res %>% 
+  mutate(mlogp=-1*log10(padj)) %>% 
+  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
+  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
+  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
+                                    name="Distance to Dux4 Peak") +
+  xlab("DUX4 Induced Log2 Fold Change")+
+  ylab("-log10(Adjusted P Value)") +
+ # scale_alpha_continuous(range = c(1.0, 1.0))+
+  theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank()))
+
+#ggsave(file="121515_volcano.svg",plot=volcano,width=8.5,height=6)
+save(volcano,file="volcano.rdata")
+#dev.off()
+```
+
 
 
 # Use the rlog to find some high variance genes that aren't likely do to noise.
