@@ -329,76 +329,8 @@ class(tbl.rmsk)
     ## [1] "data.frame"
 
 ``` r
- tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
+ #tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
  maLR<-GRanges(seqnames=tbl.rmsk$genoName,ranges=IRanges(start=tbl.rmsk$genoStart,end=tbl.rmsk$genoEnd),strand=tbl.rmsk$strand,name=tbl.rmsk$repName)
- table(seqnames(maLR))
-```
-
-    ## 
-    ##                  chr1                 chr10                 chr11 
-    ##                 24722                 14424                 14691 
-    ## chr11_gl000202_random                 chr12                 chr13 
-    ##                     8                 16566                 12374 
-    ##                 chr14                 chr15                 chr16 
-    ##                 11119                  8030                 10562 
-    ##                 chr17       chr17_ctg5_hap1 chr17_gl000203_random 
-    ##                  7542                   119                     3 
-    ## chr17_gl000204_random chr17_gl000205_random chr17_gl000206_random 
-    ##                    13                     8                     6 
-    ##                 chr18 chr18_gl000207_random                 chr19 
-    ##                  8887                     0                  5268 
-    ## chr19_gl000208_random chr19_gl000209_random  chr1_gl000191_random 
-    ##                     0                    28                    11 
-    ##  chr1_gl000192_random                  chr2                 chr20 
-    ##                    75                 28682                  8564 
-    ##                 chr21 chr21_gl000210_random                 chr22 
-    ##                  5897                    13                  3699 
-    ##                  chr3                  chr4        chr4_ctg9_hap1 
-    ##                 23535                 25348                    89 
-    ##  chr4_gl000193_random  chr4_gl000194_random                  chr5 
-    ##                    21                    19                 23423 
-    ##                  chr6         chr6_apd_hap1         chr6_cox_hap2 
-    ##                 19264                   237                   443 
-    ##         chr6_dbb_hap3        chr6_mann_hap4         chr6_mcf_hap5 
-    ##                   394                   395                   328 
-    ##         chr6_qbl_hap6        chr6_ssto_hap7                  chr7 
-    ##                   397                   395                 17196 
-    ##  chr7_gl000195_random                  chr8  chr8_gl000196_random 
-    ##                    16                 18011                     6 
-    ##  chr8_gl000197_random                  chr9  chr9_gl000198_random 
-    ##                     1                 14250                     4 
-    ##  chr9_gl000199_random  chr9_gl000200_random  chr9_gl000201_random 
-    ##                     0                    21                     1 
-    ##                  chrM        chrUn_gl000211        chrUn_gl000212 
-    ##                     0                     3                     5 
-    ##        chrUn_gl000213        chrUn_gl000214        chrUn_gl000215 
-    ##                    11                     2                    19 
-    ##        chrUn_gl000216        chrUn_gl000217        chrUn_gl000218 
-    ##                     7                    18                    18 
-    ##        chrUn_gl000219        chrUn_gl000220        chrUn_gl000221 
-    ##                    21                    12                    12 
-    ##        chrUn_gl000222        chrUn_gl000223        chrUn_gl000224 
-    ##                    18                    23                    19 
-    ##        chrUn_gl000225        chrUn_gl000226        chrUn_gl000227 
-    ##                     7                     0                    14 
-    ##        chrUn_gl000228        chrUn_gl000229        chrUn_gl000230 
-    ##                     7                     0                     4 
-    ##        chrUn_gl000231        chrUn_gl000232        chrUn_gl000233 
-    ##                     0                    15                     7 
-    ##        chrUn_gl000234        chrUn_gl000235        chrUn_gl000236 
-    ##                    10                     1                    12 
-    ##        chrUn_gl000237        chrUn_gl000238        chrUn_gl000239 
-    ##                    34                     1                    31 
-    ##        chrUn_gl000240        chrUn_gl000241        chrUn_gl000242 
-    ##                     8                     5                     1 
-    ##        chrUn_gl000243        chrUn_gl000244        chrUn_gl000245 
-    ##                     6                     4                     1 
-    ##        chrUn_gl000246        chrUn_gl000247        chrUn_gl000248 
-    ##                     0                    10                     9 
-    ##        chrUn_gl000249                  chrX                  chrY 
-    ##                     4                 18958                  2663
-
-``` r
  maLR<-keepSeqlevels(maLR,seqnames(hg19)[1:24])
  maLR <- sortSeqlevels(maLR)
  maLR<-sort(maLR,ignore.strand=TRUE)
@@ -407,13 +339,13 @@ class(tbl.rmsk)
 length(dux4dox_1k_nodnase_maLR <- dux4dox_1k_nodnase[dux4dox_1k_nodnase %over% maLR])
 ```
 
-    ## [1] 3246
+    ## [1] 15786
 
 ``` r
 length(dux4dox_1k_nodnase_nomaLR <- dux4dox_1k_nodnase[!dux4dox_1k_nodnase %over% maLR])
 ```
 
-    ## [1] 14861
+    ## [1] 2321
 
 MaLR H3K4me3
 ============
@@ -425,6 +357,10 @@ h3k4me3_nodnase_nomaLR<-twister(dux4dox_1k_nodnase_nomaLR,dataset=h3k4,pad = 350
 save(h3k4me3_dnase,h3k4me3_nodnase_maLR,h3k4me3_nodnase_nomaLR,file=paste0(ts,"_figure5d_h3k4_malr.rdata"))
 grid.arrange(h3k4me3_dnase,h3k4me3_nodnase_maLR,h3k4me3_nodnase_nomaLR,ncol=1)
 ```
+
+    ## Warning: Removed 93 rows containing missing values (geom_path).
+
+![](README_files/figure-markdown_github/h3h4me3_distribution_malR-1.png)
 
 MaLR H3K7Ac
 ===========
@@ -438,6 +374,58 @@ grid.arrange(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,ncol=1)
 ```
 
 ![](README_files/figure-markdown_github/h3k27ac_distribution_malR-1.png)
+
+### Analyze K27ac at non-DUX4 Sites
+
+``` r
+length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
+length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
+length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
+k27r<-keepSeqlevels(k27r,seqlevels(hg19)[1:24])
+mean(idx<-!k27r %over% hg19bl)
+k27r<-k27r[idx]
+summary(width(k27r))
+summary(width(center(k27r)+1000))
+k27rc_2k<-center(k27r)+1000
+
+length(dux4_vs_input)
+length(k27rc_2k_noDux<-k27rc_2k[!(k27rc_2k+10000) %over% dux4_vs_input])
+(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+bamlst <- BamFileList(fls,yieldSize = 1e5)
+detectCores()
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(h3k27_counts <- summarizeOverlaps(k27rc_2k_noDux,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+
+n<-apply(assays(h3k27_counts)$counts,2,sum)
+x<-1e6*assays(h3k27_counts)$counts
+x[,1]<-x[,1]/h3k27@count[1]
+x[,2]<-x[,2]/h3k27@count[2]
+
+x<-log2(x+1)
+
+gg_violin2<-as.data.frame(x) %>% 
+  gather(condition,log2cpm) %>% 
+  #dplyr::filter(log2cpm > 0) %>%
+  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at Non-DUX4 Sites") +
+   xlab("Condition") + ylab("Log2(cpm)") + 
+   geom_violin(aes(fill=condition)) + 
+  scale_fill_manual(values=cbPalette[c(7,6)]) +
+   theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+save(gg_violin2,file="011416_k27rc_2k_noDux_violin.rdata")
+
+
+#now make Tornado Plots
+temp<-k27rc_2k_noDux
+temp$ratio<-x[,2]-x[,1]
+temp<-temp[with(temp,order(-ratio))]
+#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 4500,ord=0,window=5,color="darkgreen"))
+#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 4500,ord=0,window=5,color="blue"))
+
+#ggsave(file="011416_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
+#ggsave(file="011416_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
+```
 
 ### RNA-Seq Analysis
 
@@ -617,9 +605,6 @@ table(res$peak10kb)
     ##             288
 
 ``` r
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
-
 gg1<-res %>% 
   mutate(mlogp=-1*log10(padj)) %>% 
   mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
@@ -708,60 +693,8 @@ save(gg1,gg2,gg3,file=paste0(ts,"_figure6c.rdata"))
 #identify(res$log2FoldChange,-1*log10(res$padj),labels=res$hgnc)
 ```
 
-################ CLEANED UP
-
-Fix this Section
-================
-
-``` r
-mean(dux4_vs_flag[dux4_vs_flag$score > 40] %over% dux4_tap)
-mean(dux4_vs_input[dux4_vs_input$score > 40] %over% dux4_tap)
-mean(dux4_tap %over% dux4_vs_flag)
-```
-
-``` r
-#tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
-#save(tss,file="tss.rdata")
-load("tss.rdata")
-dux4_vs_flag_anno <- annotatePeakInBatch(dux4_vs_flag, AnnotationData=tss, output="nearest", maxgap=100L)
-summary(dux4_vs_flag_anno$shortestDistance)
-#res$peak10kb<-rownames(res) %in% unique(dux4_vs_flag_anno$feature)
-res$peak10kb<-"> 50kb"
-overs<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$insideFeature=="overlapStart",]$feature)
-fivekb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 5000,]$feature)
-fivekb<-fivekb[!fivekb %in% overs]
-tenkb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 10000,]$feature)
-tenkb<-tenkb[!(tenkb %in% fivekb) & !(tenkb %in% overs)]
-fiftykb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 50000,]$feature)
-fiftykb<-tenkb[!(fiftykb %in% tenkb) & !(fiftykb %in% fivekb) & !(fiftykb %in% overs)]
-res[rownames(res) %in% overs,"peak10kb"]<-"Overlap's Start"
-res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
-res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
-res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
-table(res$peak10kb)
-
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
-#pdf(file="121515_volcano.pdf",width=8.5,height=6,colormodel="cmyk")
-(volcano<-res %>% 
-  mutate(mlogp=-1*log10(padj)) %>% 
-  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
-  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
-  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
-                                    name="Distance to Dux4 Peak") +
-  xlab("DUX4 Induced Log2 Fold Change")+
-  ylab("-log10(Adjusted P Value)") +
- # scale_alpha_continuous(range = c(1.0, 1.0))+
-  theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank()))
-
-#ggsave(file="121515_volcano.svg",plot=volcano,width=8.5,height=6)
-save(volcano,file="volcano.rdata")
-#dev.off()
-```
-
-Use the rlog to find some high variance genes that aren't likely do to noise.
-=============================================================================
+Use the rlog to find some high variance genes that aren't likely due to noise.
+==============================================================================
 
 ``` r
 rld <- rlog(cds, blind=FALSE)
@@ -863,158 +796,62 @@ listGO("GO:0045596")
 ```
 
 ``` r
-length(dux4dox<-import("../chip/DUX4dox_pe5_summits.bed"))
-dux4dox_1k<-dux4dox+500
-dux4dox_4k<-dux4dox+2000
-
-(fls <- list.files("../chip", pattern=glob2rx("*hg19.bam$"),full=TRUE))
-#(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
-#(fls2 <- list.files("../chip", pattern=glob2rx("DUX*hg19.bam$"),full=TRUE))
-bamlst <- BamFileList(fls,yieldSize = 1e5)
-detectCores()
-BiocParallel::register(MulticoreParam(workers=detectCores()))
-system.time(dux4dox_1k_counts <- summarizeOverlaps(dux4dox_1k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
-system.time(dux4dox_4k_counts <- summarizeOverlaps(dux4dox_4k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
-
-apply(assays(dux4dox_1k_counts)$counts,2,sum)
-apply(assays(dux4dox_4k_counts)$counts,2,sum)
-save(dux4dox_1k_counts,dux4dox_4k_counts,file="DUX4_counts.rdata")
+sessionInfo()
 ```
 
-DELETE THIS SECTION
-===================
+    ## R version 3.2.2 (2015-08-14)
+    ## Platform: x86_64-pc-linux-gnu (64-bit)
+    ## Running under: CentOS release 6.7 (Final)
+    ## 
+    ## locale:
+    ##  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+    ##  [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+    ##  [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+    ##  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+    ##  [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+    ## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+    ## 
+    ## attached base packages:
+    ##  [1] grid      parallel  stats4    stats     graphics  grDevices utils    
+    ##  [8] datasets  methods   base     
+    ## 
+    ## other attached packages:
+    ##  [1] ChIPpeakAnno_3.2.2                RSQLite_1.0.0                    
+    ##  [3] DBI_0.3.1                         biomaRt_2.24.1                   
+    ##  [5] VennDiagram_1.6.16                futile.logger_1.4.1              
+    ##  [7] BSgenome.Hsapiens.UCSC.hg19_1.4.0 BSgenome_1.36.3                  
+    ##  [9] tidyr_0.3.1                       dplyr_0.4.3                      
+    ## [11] RColorBrewer_1.1-2                rtracklayer_1.28.10              
+    ## [13] GenomicAlignments_1.4.2           Rsamtools_1.20.5                 
+    ## [15] Biostrings_2.36.4                 XVector_0.8.0                    
+    ## [17] BiocParallel_1.2.22               pheatmap_1.0.7                   
+    ## [19] gridExtra_2.0.0                   ggplot2_1.0.1                    
+    ## [21] DESeq2_1.8.2                      RcppArmadillo_0.6.200.2.0        
+    ## [23] Rcpp_0.12.2                       GenomicRanges_1.20.8             
+    ## [25] GenomeInfoDb_1.4.3                IRanges_2.2.9                    
+    ## [27] S4Vectors_0.6.6                   BiocGenerics_0.14.0              
+    ## 
+    ## loaded via a namespace (and not attached):
+    ##  [1] Biobase_2.28.0         splines_3.2.2          Formula_1.2-1         
+    ##  [4] assertthat_0.1         latticeExtra_0.6-26    RBGL_1.44.0           
+    ##  [7] yaml_2.1.13            lattice_0.20-33        limma_3.24.15         
+    ## [10] digest_0.6.8           colorspace_1.2-6       htmltools_0.2.6       
+    ## [13] plyr_1.8.3             XML_3.98-1.3           genefilter_1.50.0     
+    ## [16] zlibbioc_1.14.0        GO.db_3.1.2            xtable_1.8-0          
+    ## [19] scales_0.3.0           annotate_1.46.1        GenomicFeatures_1.20.6
+    ## [22] lazyeval_0.1.10        nnet_7.3-11            proto_0.3-10          
+    ## [25] survival_2.38-3        magrittr_1.5           evaluate_0.8          
+    ## [28] MASS_7.3-44            foreign_0.8-66         graph_1.46.0          
+    ## [31] BiocInstaller_1.18.5   tools_3.2.2            formatR_1.2.1         
+    ## [34] stringr_1.0.0          munsell_0.4.2          locfit_1.5-9.1        
+    ## [37] cluster_2.0.3          AnnotationDbi_1.30.1   lambda.r_1.1.7        
+    ## [40] RCurl_1.95-4.7         labeling_0.3           bitops_1.0-6          
+    ## [43] rmarkdown_0.8.1        gtable_0.1.2           multtest_2.24.0       
+    ## [46] reshape2_1.4.1         R6_2.1.1               knitr_1.11            
+    ## [49] Hmisc_3.17-0           futile.options_1.0.0   stringi_1.0-1         
+    ## [52] geneplotter_1.46.0     rpart_4.1-10           acepack_1.3-3.3
 
-Create Violin Plot for K27ac
-
-``` r
-load("DUX4_counts.rdata")
-#head(assays(dux4dox_1k_counts)$counts)
-gr<-rowRanges(dux4dox_1k_counts)
-idx<-!gr %over% hg19bl
-allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
-(n<-colSums(allcounts))
-length(gr<-gr[idx])
-gr$k27nd<-log2(allcounts[,2]*10e6/n[2] + 1)
-gr$k27pd<-log2(allcounts[,3]*10e6/n[3] + 1)
-gr$dux4<-log2(allcounts[,1]*10e6/n[1] + 1)
-x<-as.matrix(mcols(gr)[,3:5])
-
-gg_violin<- as.data.frame(mcols(gr)[,3:4]) %>% 
-  gather(condition,log2cpm) %>% 
-#  dplyr::filter(log2cpm > 0) %>%
-  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
-   xlab("Condition") + ylab("Log2(cpm)") + 
-   geom_violin(aes(fill=condition)) + 
-  scale_fill_manual(values=cbPalette[c(7,6)]) +
-   theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank())
-
-#ggsave(file="010816_violin.svg",device = svglite::svglite,plot=gg_violin,width=8.5,height=6)
-save(gg_violin,file="010816_violin.rdata")
-```
-
-DELETE THIS SECTION
-===================
-
-``` r
-load("DUX4_counts.rdata")
-
-dux4dox_1k<-rowRanges(dux4dox_1k_counts)
-(n<-apply(assays(dux4dox_1k_counts)$counts,2,sum))
-
-x<-which(grepl("input",names(n)))
-temp<-apply(assays(dux4dox_1k_counts)$counts[,x],1,mean)
-dux4dox_1k$input<-log2(temp*10e6/sum(temp)+1)
-
-x<-which(grepl("h3k27_nodox",names(n)))
-dux4dox_1k$k27nd<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
-x<-which(grepl("h3k27_plusdox",names(n)))
-dux4dox_1k$k27pd<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
-x<-which(grepl("DUX4",names(n)))
-dux4dox_1k$dux4<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
-#quantro::matdensity(as.matrix(mcols(dux4dox_1k)[,3:6]))
-#abline(v=9)
-#clean up
-length(dux4dox_1k<-keepSeqlevels(dux4dox_1k,seqlevels(hg19)[1:24])) #remove small contigs
-length(dux4dox_1k<-dux4dox_1k[!dux4dox_1k %over% hg19bl])  #remove black listed regions
-length(dux4dox_1k<-dux4dox_1k[dux4dox_1k$input < 9])  # remove regions with excessive reads in input 
-
-#Load DNAse data
-#dnase<-read.table("ENCFF001BVR.bed",stringsAsFactors=FALSE)
-#dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnase$V7,score2=dnase$V8)
-
-dux4dox_1k$dnase_overlap <- dux4dox_1k %over% dnase
-```
-
-New Section
-
-``` r
-load("filesets.rdata")
-load("DUX4_counts.rdata")
-
-head(assays(dux4dox_1k_counts)$counts)
-gr<-rowRanges(dux4dox_1k_counts)
-head(gr)
-idx<-!keepSeqlevels(gr,seqlevels(hg19)[1:24]) %over% hg19bl
-allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
-(n<-colSums(allcounts))
-length(gr<-gr[idx])
-gr$k27nd<-log2(allcounts[,2]*1e6/h3k27@count[1] + 1)
-gr$k27pd<-log2(allcounts[,3]*1e6/h3k27@count[2] + 1)
-gr$input<-log2(allcounts[,7]*1e6/DUX4i@count[1] + 1)
-gr$dux4<-log2(allcounts[,1]*1e6/DUX4i@count[2] + 1)
-
-#Filter ranges with 'outlier' input counts
-(cutoff <-quantile(as.numeric(gr$input), 3/4)+1.5*IQR(as.numeric(gr$input)))
-length(gr<-gr[gr$input < cutoff])
-
-gg_violin<- as.data.frame(mcols(gr)[,3:4]) %>% 
-  gather(condition,log2cpm) %>% 
-#  dplyr::filter(log2cpm > 0) %>%
-  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
-   xlab("Condition") + ylab("Log2(cpm)") + 
-   geom_violin(aes(fill=condition)) + 
-  scale_fill_manual(values=cbPalette[c(7,6)]) +
-   theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank())
-
-#ggsave(file="011916_violin.svg",device = svglite::svglite,plot=gg_violin,width=8.5,height=6)
-save(gg_violin,file="011916_violin.rdata")
-
-#Order by DUX4 peak score
-gr<-gr[with(gr,order(-score))]
-
-#Add a logical to indicated DNAse Overlap
-gr$dnase_overlap <- gr %over% dnase
-
-length(dux4dox_1k <- gr)
-length(dux4dox_1k_dnase <- gr[gr$dnase_overlap])
-length(dux4dox_1k_nodnase <- gr[!gr$dnase_overlap])
-```
-
-Measure Overlap with Geng et al 2012 Fibroblast Data
-====================================================
-
-``` r
-ts<-read.csv("GSM837613_Dux4.full.peak.csv",stringsAsFactors=F)
-tsGR<-GRanges(seqnames=ts$chr,IRanges(start=ts$start,end=ts$end),max.cov=ts$max.cov,pval=ts$pval)
-
-hg18ToHg19<-import.chain("hg18ToHg19.over.chain")
-length(tsGR_hg19<-unlist(liftOver(tsGR,hg18ToHg19)))
-export(tsGR_hg19,"tsGR_hg19.bed")
-
-length(dux4_vs_input<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed"))
-length(temp<-dux4_vs_input[dux4_vs_input$name %in% gr$name])
-mean(temp %over% tsGR_hg19)
-
-
-#Compare to MACS calls of Fibroblast DUX4 ChIP data
-dux4_tap<-rtracklayer::import("../chip/dux4_fl_pe5_peaks.bed")
-dux4_tap<-keepSeqlevels(dux4_tap,seqlevels(hg19)[1:24])
-length(dux4_tap<-dux4_tap[!dux4_tap %over% hg19bl])
-
-mean(temp %over% dux4_tap)
-```
+################ CLEANED UP
 
 ``` r
 load("filesets.rdata")
@@ -1195,116 +1032,12 @@ system.time(h3k27_counts <- summarizeOverlaps(center(k27r)+2000,bamlst,mode="Uni
 save(h3k27_counts,file="k27r_4k_DUX4_counts.rdata")
 ```
 
-DELETE THIS SECTION
-===================
-
-``` r
-load("k27r_4k_DUX4_counts.rdata")
-(n<-apply(assays(h3k27_counts)$counts,2,sum))
-length(k27r_4k<-rowRanges(h3k27_counts))
-
-#Add counts to metadata of peaklist
-(x<-which(grepl("h3k27_nodox",names(n))))
-k27r_4k$k27nd<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
-(x<-which(grepl("h3k27_plusdox",names(n))))
-k27r_4k$k27pd<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
-(x<-which(grepl("DUX4",names(n))))
-k27r_4k$dux4<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
-
-head(k27r_4k)
-#clean up
-length(k27r_4k <- keepSeqlevels(k27r_4k,seqlevels(hg19)[1:24]))
-length(k27r_4k <- k27r_4k[!k27r_4k %over% hg19bl])
-
-#quantro::matdensity(as.matrix(mcols(k27r_4k)[,c(1:3)]))
-
-#length(dux4peaks<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed"))
-length(k27r_4k_noDux<-k27r_4k[!(k27r_4k + 10000 )%over% dux4_vs_input])  #any peaks within 10kb
-length(k27r_4k_noDux_dnase<-k27r_4k_noDux[k27r_4k_noDux %over% dnase])
-
-#quantro::matdensity(as.matrix(mcols(k27r_4k_noDux_dnase)[,c(1:2)]))
-
-length(k27r_4k_noDux_dnase_HIGH<-k27r_4k_noDux_dnase[k27r_4k_noDux_dnase$k27nd > 5 | k27r_4k_noDux_dnase$k27pd > 5])
-
-k27r_4k_noDux_dnase_HIGH$ratio <- k27r_4k_noDux_dnase_HIGH$k27pd - k27r_4k_noDux_dnase_HIGH$k27nd
-
-k27r_4k_noDux_dnase_HIGH <- k27r_4k_noDux_dnase_HIGH[with(k27r_4k_noDux_dnase_HIGH,order(-ratio))]
-wls(head(k27r_4k_noDux_dnase_HIGH,20))
-
-plot(k27r_4k_noDux_dnase_HIGH$ratio,k27r_4k_noDux_dnase_HIGH$dux4,cex=0.5,pch=16)
-abline(v=0,col="red")
-
-#temp<-sample(k27r_4k_noDux_dnase_HIGH,1000)
-temp<-k27r_4k_noDux_dnase_HIGH
-temp<-temp[with(temp,order(-ratio))]
-#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="darkgreen"))
-#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue"))
-
-#ggsave(file="011816_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
-#ggsave(file="011816_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
-```
-
-New K27ac plan
-==============
-
-``` r
-length(k27pd<-import("../chip/h3k27ac_plusdox_pe5_peaks.bed"))
-length(k27nd<-import("../chip/h3k27ac_nodox_pe5_peaks.bed"))
-length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
-length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
-length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
-k27r<-keepSeqlevels(k27r,seqlevels(hg19)[1:24])
-mean(idx<-!k27r %over% hg19bl)
-k27r<-k27r[idx]
-summary(width(k27r))
-summary(width(center(k27r)+1000))
-k27rc_2k<-center(k27r)+1000
-
-length(dux4_vs_input)
-length(k27rc_2k_noDux<-k27rc_2k[!(k27rc_2k+10000) %over% dux4_vs_input])
-(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
-bamlst <- BamFileList(fls,yieldSize = 1e5)
-detectCores()
-BiocParallel::register(MulticoreParam(workers=detectCores()))
-system.time(h3k27_counts <- summarizeOverlaps(k27rc_2k_noDux,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
-
-n<-apply(assays(h3k27_counts)$counts,2,sum)
-x<-1e6*assays(h3k27_counts)$counts
-x[,1]<-x[,1]/h3k27@count[1]
-x[,2]<-x[,2]/h3k27@count[2]
-
-x<-log2(x+1)
-
-gg_violin2<-as.data.frame(x) %>% 
-  gather(condition,log2cpm) %>% 
-  #dplyr::filter(log2cpm > 0) %>%
-  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at Non-DUX4 Sites") +
-   xlab("Condition") + ylab("Log2(cpm)") + 
-   geom_violin(aes(fill=condition)) + 
-  scale_fill_manual(values=cbPalette[c(7,6)]) +
-   theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank())
-
-save(gg_violin2,file="011416_k27rc_2k_noDux_violin.rdata")
-
-
-#now make Tornado Plots
-temp<-k27rc_2k_noDux
-temp$ratio<-x[,2]-x[,1]
-temp<-temp[with(temp,order(-ratio))]
-#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 4500,ord=0,window=5,color="darkgreen"))
-#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 4500,ord=0,window=5,color="blue"))
-
-#ggsave(file="011416_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
-#ggsave(file="011416_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
-```
-
 ``` r
 load("h3k27_counts.rdata")
 (n<-apply(assays(h3k27_counts)$counts,2,sum))
 length(gr<-rowRanges(h3k27_counts))
-gr$k27nd<-log2(assays(h3k27_counts)$counts[,1]*10e6/n[1] + 1)
-gr$k27pd<-log2(assays(h3k27_counts)$counts[,2]*10e6/n[2] + 1)
+gr$k27nd<-log2(assays(h3k27_counts)$counts[,1]*1e6/n[1] + 1)
+gr$k27pd<-log2(assays(h3k27_counts)$counts[,2]*1e6/n[2] + 1)
 head(gr)
 plot(gr$k27pd,gr$k27nd,cex=0.2,pch=16)
 #x<-as.matrix(mcols(gr))
@@ -1331,59 +1064,3 @@ length(gr_subset_subset<-gr_subset)
 
 length(gr_subset_subset<-gr_subset_subset[width(gr_subset_subset)<5000])
 ```
-
-``` r
-sessionInfo()
-```
-
-    ## R version 3.2.2 (2015-08-14)
-    ## Platform: x86_64-pc-linux-gnu (64-bit)
-    ## Running under: CentOS release 6.7 (Final)
-    ## 
-    ## locale:
-    ##  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
-    ##  [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
-    ##  [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
-    ##  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
-    ##  [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-    ## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
-    ## 
-    ## attached base packages:
-    ##  [1] grid      parallel  stats4    stats     graphics  grDevices utils    
-    ##  [8] datasets  methods   base     
-    ## 
-    ## other attached packages:
-    ##  [1] ChIPpeakAnno_3.2.2                RSQLite_1.0.0                    
-    ##  [3] DBI_0.3.1                         biomaRt_2.24.1                   
-    ##  [5] VennDiagram_1.6.16                futile.logger_1.4.1              
-    ##  [7] BSgenome.Hsapiens.UCSC.hg19_1.4.0 BSgenome_1.36.3                  
-    ##  [9] tidyr_0.3.1                       dplyr_0.4.3                      
-    ## [11] RColorBrewer_1.1-2                rtracklayer_1.28.10              
-    ## [13] GenomicAlignments_1.4.2           Rsamtools_1.20.5                 
-    ## [15] Biostrings_2.36.4                 XVector_0.8.0                    
-    ## [17] BiocParallel_1.2.22               pheatmap_1.0.7                   
-    ## [19] gridExtra_2.0.0                   ggplot2_1.0.1                    
-    ## [21] DESeq2_1.8.2                      RcppArmadillo_0.6.200.2.0        
-    ## [23] Rcpp_0.12.2                       GenomicRanges_1.20.8             
-    ## [25] GenomeInfoDb_1.4.3                IRanges_2.2.9                    
-    ## [27] S4Vectors_0.6.6                   BiocGenerics_0.14.0              
-    ## 
-    ## loaded via a namespace (and not attached):
-    ##  [1] Biobase_2.28.0         splines_3.2.2          Formula_1.2-1         
-    ##  [4] assertthat_0.1         latticeExtra_0.6-26    RBGL_1.44.0           
-    ##  [7] yaml_2.1.13            lattice_0.20-33        limma_3.24.15         
-    ## [10] digest_0.6.8           colorspace_1.2-6       htmltools_0.2.6       
-    ## [13] plyr_1.8.3             XML_3.98-1.3           genefilter_1.50.0     
-    ## [16] zlibbioc_1.14.0        GO.db_3.1.2            xtable_1.8-0          
-    ## [19] scales_0.3.0           annotate_1.46.1        GenomicFeatures_1.20.6
-    ## [22] lazyeval_0.1.10        nnet_7.3-11            proto_0.3-10          
-    ## [25] survival_2.38-3        magrittr_1.5           evaluate_0.8          
-    ## [28] MASS_7.3-44            foreign_0.8-66         graph_1.46.0          
-    ## [31] BiocInstaller_1.18.5   tools_3.2.2            formatR_1.2.1         
-    ## [34] stringr_1.0.0          munsell_0.4.2          locfit_1.5-9.1        
-    ## [37] cluster_2.0.3          AnnotationDbi_1.30.1   lambda.r_1.1.7        
-    ## [40] RCurl_1.95-4.7         labeling_0.3           bitops_1.0-6          
-    ## [43] rmarkdown_0.8.1        gtable_0.1.2           multtest_2.24.0       
-    ## [46] reshape2_1.4.1         R6_2.1.1               knitr_1.11            
-    ## [49] Hmisc_3.17-0           futile.options_1.0.0   stringi_1.0-1         
-    ## [52] geneplotter_1.46.0     rpart_4.1-10           acepack_1.3-3.3

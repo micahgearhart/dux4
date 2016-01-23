@@ -194,9 +194,8 @@ save(dux4_total,h3k27ac_total,file=paste0(ts,"_figure5c.rdata"))
 #save(tbl.rmsk,file="rmsk_full_hg19.rdata")
 load("rmsk_full_hg19.rdata")
 class(tbl.rmsk)
- tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
+ #tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
  maLR<-GRanges(seqnames=tbl.rmsk$genoName,ranges=IRanges(start=tbl.rmsk$genoStart,end=tbl.rmsk$genoEnd),strand=tbl.rmsk$strand,name=tbl.rmsk$repName)
- table(seqnames(maLR))
  maLR<-keepSeqlevels(maLR,seqnames(hg19)[1:24])
  maLR <- sortSeqlevels(maLR)
  maLR<-sort(maLR,ignore.strand=TRUE)
@@ -207,7 +206,7 @@ length(dux4dox_1k_nodnase_nomaLR <- dux4dox_1k_nodnase[!dux4dox_1k_nodnase %over
 ```
 
 # MaLR H3K4me3
-```{r h3h4me3_distribution_malR, eval=F}
+```{r h3h4me3_distribution_malR,eval=T,fig.height=10,fig.width=6}
 h3k4me3_dnase <-twister(dux4dox_1k_dnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
 h3k4me3_nodnase_maLR<-twister(dux4dox_1k_nodnase_maLR,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
 h3k4me3_nodnase_nomaLR<-twister(dux4dox_1k_nodnase_nomaLR,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(10,16))
@@ -216,12 +215,63 @@ grid.arrange(h3k4me3_dnase,h3k4me3_nodnase_maLR,h3k4me3_nodnase_nomaLR,ncol=1)
 ```
 
 # MaLR H3K7Ac
-```{r h3k27ac_distribution_malR, eval=T}
+```{r h3k27ac_distribution_malR, eval=T,fig.height=10,fig.width=6}
 h3k27_dnase <-twister(dux4dox_1k_dnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
 h3k27_nodnase_maLR<-twister(dux4dox_1k_nodnase_maLR,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
 h3k27_nodnase_nomaLR<-twister(dux4dox_1k_nodnase_nomaLR,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(8,16))
 save(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,file=paste0(ts,"_figure5d_h3k27_malr.rdata"))
 grid.arrange(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,ncol=1)
+```
+
+### Analyze K27ac at non-DUX4 Sites
+```{r h27ac_2k,eval=F}
+length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
+length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
+length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
+k27r<-keepSeqlevels(k27r,seqlevels(hg19)[1:24])
+mean(idx<-!k27r %over% hg19bl)
+k27r<-k27r[idx]
+summary(width(k27r))
+summary(width(center(k27r)+1000))
+k27rc_2k<-center(k27r)+1000
+
+length(dux4_vs_input)
+length(k27rc_2k_noDux<-k27rc_2k[!(k27rc_2k+10000) %over% dux4_vs_input])
+(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
+bamlst <- BamFileList(fls,yieldSize = 1e5)
+detectCores()
+BiocParallel::register(MulticoreParam(workers=detectCores()))
+system.time(h3k27_counts <- summarizeOverlaps(k27rc_2k_noDux,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
+
+n<-apply(assays(h3k27_counts)$counts,2,sum)
+x<-1e6*assays(h3k27_counts)$counts
+x[,1]<-x[,1]/h3k27@count[1]
+x[,2]<-x[,2]/h3k27@count[2]
+
+x<-log2(x+1)
+
+gg_violin2<-as.data.frame(x) %>% 
+  gather(condition,log2cpm) %>% 
+  #dplyr::filter(log2cpm > 0) %>%
+  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at Non-DUX4 Sites") +
+   xlab("Condition") + ylab("Log2(cpm)") + 
+   geom_violin(aes(fill=condition)) + 
+  scale_fill_manual(values=cbPalette[c(7,6)]) +
+   theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+save(gg_violin2,file="011416_k27rc_2k_noDux_violin.rdata")
+
+
+#now make Tornado Plots
+temp<-k27rc_2k_noDux
+temp$ratio<-x[,2]-x[,1]
+temp<-temp[with(temp,order(-ratio))]
+#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 4500,ord=0,window=5,color="darkgreen"))
+#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 4500,ord=0,window=5,color="blue"))
+
+#ggsave(file="011416_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
+#ggsave(file="011416_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
 ```
 
 ### RNA-Seq Analysis
@@ -310,8 +360,6 @@ res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
 res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
 res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
 table(res$peak10kb)
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
 
 gg1<-res %>% 
   mutate(mlogp=-1*log10(padj)) %>% 
@@ -402,59 +450,7 @@ save(gg1,gg2,gg3,file=paste0(ts,"_figure6c.rdata"))
 
 ```
 
-################ CLEANED UP ####################
-
-#Fix this Section 
-```{r overlaps,eval=F}
-mean(dux4_vs_flag[dux4_vs_flag$score > 40] %over% dux4_tap)
-mean(dux4_vs_input[dux4_vs_input$score > 40] %over% dux4_tap)
-mean(dux4_tap %over% dux4_vs_flag)
-```
-
-```{r volcano_plot,eval=F}
-#tss<-getAnnotation(ensembl_75,featureType="TSS",output="GRanges")
-#save(tss,file="tss.rdata")
-load("tss.rdata")
-dux4_vs_flag_anno <- annotatePeakInBatch(dux4_vs_flag, AnnotationData=tss, output="nearest", maxgap=100L)
-summary(dux4_vs_flag_anno$shortestDistance)
-#res$peak10kb<-rownames(res) %in% unique(dux4_vs_flag_anno$feature)
-res$peak10kb<-"> 50kb"
-overs<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$insideFeature=="overlapStart",]$feature)
-fivekb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 5000,]$feature)
-fivekb<-fivekb[!fivekb %in% overs]
-tenkb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 10000,]$feature)
-tenkb<-tenkb[!(tenkb %in% fivekb) & !(tenkb %in% overs)]
-fiftykb<-unique(dux4_vs_flag_anno[dux4_vs_flag_anno$shortestDistance < 50000,]$feature)
-fiftykb<-tenkb[!(fiftykb %in% tenkb) & !(fiftykb %in% fivekb) & !(fiftykb %in% overs)]
-res[rownames(res) %in% overs,"peak10kb"]<-"Overlap's Start"
-res[rownames(res) %in% fivekb,"peak10kb"]<-"< 5Kb"
-res[rownames(res) %in% tenkb,"peak10kb"]<-"< 10Kb"
-res[rownames(res) %in% fiftykb,"peak10kb"]<-"< 50Kb"
-table(res$peak10kb)
-
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
-#pdf(file="121515_volcano.pdf",width=8.5,height=6,colormodel="cmyk")
-(volcano<-res %>% 
-  mutate(mlogp=-1*log10(padj)) %>% 
-  mutate(peak10kb=factor(peak10kb,levels=c("Overlap's Start","< 5Kb","< 10Kb","< 50Kb","> 50kb"))) %>% 
-  ggplot(aes(x=log2FoldChange,y=mlogp,color=peak10kb)) +
-  geom_point(size=3) + scale_color_manual(values=cbPalette[c(2,6,7,8,1)],
-                                    name="Distance to Dux4 Peak") +
-  xlab("DUX4 Induced Log2 Fold Change")+
-  ylab("-log10(Adjusted P Value)") +
- # scale_alpha_continuous(range = c(1.0, 1.0))+
-  theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank()))
-
-#ggsave(file="121515_volcano.svg",plot=volcano,width=8.5,height=6)
-save(volcano,file="volcano.rdata")
-#dev.off()
-```
-
-
-
-# Use the rlog to find some high variance genes that aren't likely do to noise.
+# Use the rlog to find some high variance genes that aren't likely due to noise.
 ```{r eval=F}
 rld <- rlog(cds, blind=FALSE)
 hist(res$pvalue[res$baseMean > 1], breaks=0:20/20, col="grey50", border="white")
@@ -497,7 +493,6 @@ seqlengths(hg38IdeogramCyto)
 ggplot(hg38IdeogramCyto) + layout_karyogram(cytoband = FALSE)  + theme_bw() +
   layout_karyogram(resGR, geom = "rect", ylim = c(11, 21),color = "red")
 ```
-
 
 #GOseq for enriched Terms
 ```{r eval=F}
@@ -551,152 +546,11 @@ tg
 listGO("GO:0045596")
 ```
 
-```{r countDUX_sites,eval=F}
-length(dux4dox<-import("../chip/DUX4dox_pe5_summits.bed"))
-dux4dox_1k<-dux4dox+500
-dux4dox_4k<-dux4dox+2000
-
-(fls <- list.files("../chip", pattern=glob2rx("*hg19.bam$"),full=TRUE))
-#(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
-#(fls2 <- list.files("../chip", pattern=glob2rx("DUX*hg19.bam$"),full=TRUE))
-bamlst <- BamFileList(fls,yieldSize = 1e5)
-detectCores()
-BiocParallel::register(MulticoreParam(workers=detectCores()))
-system.time(dux4dox_1k_counts <- summarizeOverlaps(dux4dox_1k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
-system.time(dux4dox_4k_counts <- summarizeOverlaps(dux4dox_4k,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
-
-apply(assays(dux4dox_1k_counts)$counts,2,sum)
-apply(assays(dux4dox_4k_counts)$counts,2,sum)
-save(dux4dox_1k_counts,dux4dox_4k_counts,file="DUX4_counts.rdata")
+```{r sessionInfo,eval=T}
+sessionInfo()
 ```
 
-#DELETE THIS SECTION
-Create Violin Plot for K27ac
-```{r violin,eval=F}
-load("DUX4_counts.rdata")
-#head(assays(dux4dox_1k_counts)$counts)
-gr<-rowRanges(dux4dox_1k_counts)
-idx<-!gr %over% hg19bl
-allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
-(n<-colSums(allcounts))
-length(gr<-gr[idx])
-gr$k27nd<-log2(allcounts[,2]*10e6/n[2] + 1)
-gr$k27pd<-log2(allcounts[,3]*10e6/n[3] + 1)
-gr$dux4<-log2(allcounts[,1]*10e6/n[1] + 1)
-x<-as.matrix(mcols(gr)[,3:5])
-
-gg_violin<- as.data.frame(mcols(gr)[,3:4]) %>% 
-  gather(condition,log2cpm) %>% 
-#  dplyr::filter(log2cpm > 0) %>%
-  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
-   xlab("Condition") + ylab("Log2(cpm)") + 
-   geom_violin(aes(fill=condition)) + 
-  scale_fill_manual(values=cbPalette[c(7,6)]) +
-   theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank())
-
-#ggsave(file="010816_violin.svg",device = svglite::svglite,plot=gg_violin,width=8.5,height=6)
-save(gg_violin,file="010816_violin.rdata")
-
-```
-
-# DELETE THIS SECTION
-```{r DNAse,eval=F}
-load("DUX4_counts.rdata")
-
-dux4dox_1k<-rowRanges(dux4dox_1k_counts)
-(n<-apply(assays(dux4dox_1k_counts)$counts,2,sum))
-
-x<-which(grepl("input",names(n)))
-temp<-apply(assays(dux4dox_1k_counts)$counts[,x],1,mean)
-dux4dox_1k$input<-log2(temp*10e6/sum(temp)+1)
-
-x<-which(grepl("h3k27_nodox",names(n)))
-dux4dox_1k$k27nd<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
-x<-which(grepl("h3k27_plusdox",names(n)))
-dux4dox_1k$k27pd<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
-x<-which(grepl("DUX4",names(n)))
-dux4dox_1k$dux4<-log2(assays(dux4dox_1k_counts)$counts[,x]*10e6/n[x]+1)
-#quantro::matdensity(as.matrix(mcols(dux4dox_1k)[,3:6]))
-#abline(v=9)
-#clean up
-length(dux4dox_1k<-keepSeqlevels(dux4dox_1k,seqlevels(hg19)[1:24])) #remove small contigs
-length(dux4dox_1k<-dux4dox_1k[!dux4dox_1k %over% hg19bl])  #remove black listed regions
-length(dux4dox_1k<-dux4dox_1k[dux4dox_1k$input < 9])  # remove regions with excessive reads in input 
-
-#Load DNAse data
-#dnase<-read.table("ENCFF001BVR.bed",stringsAsFactors=FALSE)
-#dnase<-GRanges(seqnames=dnase$V1,IRanges(start=dnase$V2,end=dnase$V3),score=dnase$V7,score2=dnase$V8)
-
-dux4dox_1k$dnase_overlap <- dux4dox_1k %over% dnase
-```
-
-New Section
-```{r blah_violin_dux4_sites,eval=F}
-load("filesets.rdata")
-load("DUX4_counts.rdata")
-
-head(assays(dux4dox_1k_counts)$counts)
-gr<-rowRanges(dux4dox_1k_counts)
-head(gr)
-idx<-!keepSeqlevels(gr,seqlevels(hg19)[1:24]) %over% hg19bl
-allcounts<-assays(dux4dox_1k_counts)$counts[idx,]
-(n<-colSums(allcounts))
-length(gr<-gr[idx])
-gr$k27nd<-log2(allcounts[,2]*1e6/h3k27@count[1] + 1)
-gr$k27pd<-log2(allcounts[,3]*1e6/h3k27@count[2] + 1)
-gr$input<-log2(allcounts[,7]*1e6/DUX4i@count[1] + 1)
-gr$dux4<-log2(allcounts[,1]*1e6/DUX4i@count[2] + 1)
-
-#Filter ranges with 'outlier' input counts
-(cutoff <-quantile(as.numeric(gr$input), 3/4)+1.5*IQR(as.numeric(gr$input)))
-length(gr<-gr[gr$input < cutoff])
-
-gg_violin<- as.data.frame(mcols(gr)[,3:4]) %>% 
-  gather(condition,log2cpm) %>% 
-#  dplyr::filter(log2cpm > 0) %>%
-  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at DUX4 Sites") +
-   xlab("Condition") + ylab("Log2(cpm)") + 
-   geom_violin(aes(fill=condition)) + 
-  scale_fill_manual(values=cbPalette[c(7,6)]) +
-   theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank())
-
-#ggsave(file="011916_violin.svg",device = svglite::svglite,plot=gg_violin,width=8.5,height=6)
-save(gg_violin,file="011916_violin.rdata")
-
-#Order by DUX4 peak score
-gr<-gr[with(gr,order(-score))]
-
-#Add a logical to indicated DNAse Overlap
-gr$dnase_overlap <- gr %over% dnase
-
-length(dux4dox_1k <- gr)
-length(dux4dox_1k_dnase <- gr[gr$dnase_overlap])
-length(dux4dox_1k_nodnase <- gr[!gr$dnase_overlap])
-```
-
-# Measure Overlap with Geng et al 2012 Fibroblast Data
-```{r blahGeng_Overlap,eval=F}
-ts<-read.csv("GSM837613_Dux4.full.peak.csv",stringsAsFactors=F)
-tsGR<-GRanges(seqnames=ts$chr,IRanges(start=ts$start,end=ts$end),max.cov=ts$max.cov,pval=ts$pval)
-
-hg18ToHg19<-import.chain("hg18ToHg19.over.chain")
-length(tsGR_hg19<-unlist(liftOver(tsGR,hg18ToHg19)))
-export(tsGR_hg19,"tsGR_hg19.bed")
-
-length(dux4_vs_input<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed"))
-length(temp<-dux4_vs_input[dux4_vs_input$name %in% gr$name])
-mean(temp %over% tsGR_hg19)
-
-
-#Compare to MACS calls of Fibroblast DUX4 ChIP data
-dux4_tap<-rtracklayer::import("../chip/dux4_fl_pe5_peaks.bed")
-dux4_tap<-keepSeqlevels(dux4_tap,seqlevels(hg19)[1:24])
-length(dux4_tap<-dux4_tap[!dux4_tap %over% hg19bl])
-
-mean(temp %over% dux4_tap)
-```
+################ CLEANED UP ####################
 
 
 ```{r Tornado_Plots,eval=F}
@@ -855,114 +709,12 @@ save(h3k27_counts,file="k27r_4k_DUX4_counts.rdata")
 ```
 
 
-#  DELETE THIS SECTION
-```{r h3k27ac_2,eval=F}
-load("k27r_4k_DUX4_counts.rdata")
-(n<-apply(assays(h3k27_counts)$counts,2,sum))
-length(k27r_4k<-rowRanges(h3k27_counts))
-
-#Add counts to metadata of peaklist
-(x<-which(grepl("h3k27_nodox",names(n))))
-k27r_4k$k27nd<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
-(x<-which(grepl("h3k27_plusdox",names(n))))
-k27r_4k$k27pd<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
-(x<-which(grepl("DUX4",names(n))))
-k27r_4k$dux4<-log2(assays(h3k27_counts)$counts[,x]*10e6/n[x]+1)
-
-head(k27r_4k)
-#clean up
-length(k27r_4k <- keepSeqlevels(k27r_4k,seqlevels(hg19)[1:24]))
-length(k27r_4k <- k27r_4k[!k27r_4k %over% hg19bl])
-
-#quantro::matdensity(as.matrix(mcols(k27r_4k)[,c(1:3)]))
-
-#length(dux4peaks<-rtracklayer::import("../chip/DUX4dox_pe5_peaks.bed"))
-length(k27r_4k_noDux<-k27r_4k[!(k27r_4k + 10000 )%over% dux4_vs_input])  #any peaks within 10kb
-length(k27r_4k_noDux_dnase<-k27r_4k_noDux[k27r_4k_noDux %over% dnase])
-
-#quantro::matdensity(as.matrix(mcols(k27r_4k_noDux_dnase)[,c(1:2)]))
-
-length(k27r_4k_noDux_dnase_HIGH<-k27r_4k_noDux_dnase[k27r_4k_noDux_dnase$k27nd > 5 | k27r_4k_noDux_dnase$k27pd > 5])
-
-k27r_4k_noDux_dnase_HIGH$ratio <- k27r_4k_noDux_dnase_HIGH$k27pd - k27r_4k_noDux_dnase_HIGH$k27nd
-
-k27r_4k_noDux_dnase_HIGH <- k27r_4k_noDux_dnase_HIGH[with(k27r_4k_noDux_dnase_HIGH,order(-ratio))]
-wls(head(k27r_4k_noDux_dnase_HIGH,20))
-
-plot(k27r_4k_noDux_dnase_HIGH$ratio,k27r_4k_noDux_dnase_HIGH$dux4,cex=0.5,pch=16)
-abline(v=0,col="red")
-
-#temp<-sample(k27r_4k_noDux_dnase_HIGH,1000)
-temp<-k27r_4k_noDux_dnase_HIGH
-temp<-temp[with(temp,order(-ratio))]
-#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="darkgreen"))
-#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue"))
-
-#ggsave(file="011816_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
-#ggsave(file="011816_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
-```
-
-
-#New K27ac plan
-```{r h27ac_2k,eval=F}
-length(k27pd<-import("../chip/h3k27ac_plusdox_pe5_peaks.bed"))
-length(k27nd<-import("../chip/h3k27ac_nodox_pe5_peaks.bed"))
-length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
-length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
-length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
-k27r<-keepSeqlevels(k27r,seqlevels(hg19)[1:24])
-mean(idx<-!k27r %over% hg19bl)
-k27r<-k27r[idx]
-summary(width(k27r))
-summary(width(center(k27r)+1000))
-k27rc_2k<-center(k27r)+1000
-
-length(dux4_vs_input)
-length(k27rc_2k_noDux<-k27rc_2k[!(k27rc_2k+10000) %over% dux4_vs_input])
-(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
-bamlst <- BamFileList(fls,yieldSize = 1e5)
-detectCores()
-BiocParallel::register(MulticoreParam(workers=detectCores()))
-system.time(h3k27_counts <- summarizeOverlaps(k27rc_2k_noDux,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
-
-n<-apply(assays(h3k27_counts)$counts,2,sum)
-x<-1e6*assays(h3k27_counts)$counts
-x[,1]<-x[,1]/h3k27@count[1]
-x[,2]<-x[,2]/h3k27@count[2]
-
-x<-log2(x+1)
-
-gg_violin2<-as.data.frame(x) %>% 
-  gather(condition,log2cpm) %>% 
-  #dplyr::filter(log2cpm > 0) %>%
-  ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at Non-DUX4 Sites") +
-   xlab("Condition") + ylab("Log2(cpm)") + 
-   geom_violin(aes(fill=condition)) + 
-  scale_fill_manual(values=cbPalette[c(7,6)]) +
-   theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank())
-
-save(gg_violin2,file="011416_k27rc_2k_noDux_violin.rdata")
-
-
-#now make Tornado Plots
-temp<-k27rc_2k_noDux
-temp$ratio<-x[,2]-x[,1]
-temp<-temp[with(temp,order(-ratio))]
-#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 4500,ord=0,window=5,color="darkgreen"))
-#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 4500,ord=0,window=5,color="blue"))
-
-#ggsave(file="011416_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
-#ggsave(file="011416_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
-```
-
- 
 ```{r evaluate_counts,eval=F}
 load("h3k27_counts.rdata")
 (n<-apply(assays(h3k27_counts)$counts,2,sum))
 length(gr<-rowRanges(h3k27_counts))
-gr$k27nd<-log2(assays(h3k27_counts)$counts[,1]*10e6/n[1] + 1)
-gr$k27pd<-log2(assays(h3k27_counts)$counts[,2]*10e6/n[2] + 1)
+gr$k27nd<-log2(assays(h3k27_counts)$counts[,1]*1e6/n[1] + 1)
+gr$k27pd<-log2(assays(h3k27_counts)$counts[,2]*1e6/n[2] + 1)
 head(gr)
 plot(gr$k27pd,gr$k27nd,cex=0.2,pch=16)
 #x<-as.matrix(mcols(gr))
@@ -990,6 +742,3 @@ length(gr_subset_subset<-gr_subset)
 length(gr_subset_subset<-gr_subset_subset[width(gr_subset_subset)<5000])
 ```
 
-```{r sessionInfo,eval=T}
-sessionInfo()
-```
