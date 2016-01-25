@@ -527,7 +527,7 @@ system.time(h3k27_counts <- summarizeOverlaps(k27rc_2k_noDux,bamlst,mode="Union"
 ```
 
     ##    user  system elapsed 
-    ##   0.089   1.271  81.303
+    ##   0.071   1.096  84.244
 
 ``` r
 n<-apply(assays(h3k27_counts)$counts,2,sum)
@@ -537,7 +537,7 @@ x[,2]<-x[,2]/h3k27@count[2]
 
 x<-log2(x+1)
 
-gg_violin2<-as.data.frame(x) %>% 
+(gg_violin2<-as.data.frame(x) %>% 
   gather(condition,log2cpm) %>% 
   #dplyr::filter(log2cpm > 0) %>%
   ggplot(aes(x=condition,y=log2cpm)) + ggtitle("K27ac counts at Non-DUX4 Sites") +
@@ -545,21 +545,32 @@ gg_violin2<-as.data.frame(x) %>%
    geom_violin(aes(fill=condition)) + 
   scale_fill_manual(values=cbPalette[c(7,6)]) +
    theme_bw() + theme(panel.grid.major=element_blank(),
-                     panel.grid.minor=element_blank())
+                     panel.grid.minor=element_blank()))
+```
 
+![](README_files/figure-markdown_github/h27ac_2k-1.png)
+
+``` r
 save(gg_violin2,file=paste0(ts,"_figure6a_violin2.rdata"))
+```
 
+K27Ac Tornado Plots
+===================
 
-#now make Tornado Plots
+``` r
 temp<-k27rc_2k_noDux
 temp$ratio<-x[,2]-x[,1]
 temp<-temp[with(temp,order(-ratio))]
-#benchplot(k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 4500,ord=0,window=5,color="darkgreen"))
-#benchplot(k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 4500,ord=0,window=5,color="blue"))
+k27r_k27_dnase<-tornado(temp,dataset=h3k27,pad = 4500,ord=0,window=5,color="darkgreen")
+k27r_DUX4i_dnase<-tornado(temp,dataset=DUX4i,pad = 4500,ord=0,window=5,color="blue")
 
-#ggsave(file="011416_k27r_k27_Tornado_dnase.png",plot=k27r_k27_dnase,width=5,height=8)
-#ggsave(file="011416_k27r_DUX4i_Tornado_dnase.png",plot=k27r_DUX4i_dnase,width=5,height=8)
+ggsave(file=paste0(ts,"_figure6b_k27ac.png"),plot=k27r_k27_dnase,width=5,height=8)
+ggsave(file=paste0(ts,"_figure6a_violin2.png"),plot=k27r_DUX4i_dnase,width=5,height=8)
+
+grid.arrange(k27r_k27_dnase,k27r_DUX4i_dnase, ncol=1)
 ```
+
+![](README_files/figure-markdown_github/k27ac_tornado-1.png)
 
 ### RNA-Seq Analysis
 
@@ -816,7 +827,18 @@ gg3<-res %>%
                      panel.grid.minor=element_blank())
 
 save(gg1,gg2,gg3,file=paste0(ts,"_figure6c.rdata"))
+grid.arrange(gg1,gg2,gg3,ncol=1)
+```
 
+    ## Warning: Removed 4 rows containing missing values (geom_point).
+
+    ## Warning: Removed 2 rows containing missing values (geom_point).
+
+    ## Warning: Removed 1 rows containing missing values (geom_point).
+
+![](README_files/figure-markdown_github/volcano_plot2-1.png)
+
+``` r
 #no Cairo on mesabi
 #ggsave(file="010816_volcano1.svg",device = svglite::svglite,plot=gg1,width=8.5,height=6)
 #ggsave(file="010816_volcano2.svg",device = svglite::svglite,plot=gg2,width=8.5,height=6)
