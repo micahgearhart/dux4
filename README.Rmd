@@ -155,8 +155,8 @@ save(gg_violin,file=paste0(ts,"_figure5b.rdata"))
 #Order by DUX4 peak score
 gr<-gr[with(gr,order(-score))]
 
-#Add a logical to indicated DNAse Overlap
-gr$dnase_overlap <- gr %over% dnase
+#Add a logical to indicated DNAse Accessible Overlapping 1kb window   
+gr$dnase_overlap <- overlapsAny(gr,dnase,maxgap=0L)
 
 #Replace dux4dox_1k with "cleaned up" version
 length(dux4dox_1k <- gr)
@@ -167,6 +167,11 @@ length(dux4dox_1k_nodnase <- gr[!gr$dnase_overlap])
 length(dux4_vs_input<-dux4_vs_input[dux4_vs_input$name %in% dux4dox_1k$name])
 seqlevels(dux4_vs_input) <- seqlevels(dux4dox_1k)
 length(dux4_vs_input) == length(dux4dox_1k)
+
+length(dux4_vs_input_summits<-dux4_vs_input_summits[dux4_vs_input_summits$name %in% dux4dox_1k$name])
+seqlevels(dux4_vs_input_summits) <- seqlevels(dux4dox_1k)
+length(dux4_vs_input_summits) == length(dux4dox_1k)
+
 ```
 
 # Measure Overlap with Geng et al 2012 Data
@@ -187,7 +192,65 @@ save(dux4_total,h3k27ac_total,file=paste0(ts,"_figure5c.rdata"))
 ```
 
 
-```{r maLR_ERV,eval=T}
+# Estimate Overlaps with LTR Elements
+```{r maLR_new,eval=T}
+load("rmsk_full_hg19.rdata")
+# tbl.rmsk<-tbl.rmsk[tbl.rmsk$repFamily=="ERVL-MaLR",]
+maLR<-GRanges(seqnames=tbl.rmsk$genoName,ranges=IRanges(start=tbl.rmsk$genoStart,end=tbl.rmsk$genoEnd),
+              strand=tbl.rmsk$strand,name=tbl.rmsk$repName,family=tbl.rmsk$repFamily,class=tbl.rmsk$repClass)
+maLR<-keepSeqlevels(maLR,seqnames(hg19)[1:24])
+ 
+m<-maLR[maLR$class == "LTR"]
+
+temp<-table(m$family)
+m$family<-as.factor(gsub("\\?","",as.character(m$family)))
+m<-m[m$family %in% names(temp)[temp>0]]
+m$name<-factor(m$name) #drop levels in an mcol
+m$family<-factor(m$family) #drop levels in an mcol
+table(m$family)
+mL<-split(m,m$family)
+
+fx2 <- function(repeats,peaks) { sum(overlapsAny(peaks,repeats,ignore.strand=TRUE)) }
+
+ltr_overlaps<- function(d4) {
+x<-cbind(dnase=unlist(lapply(mL,fx2,d4[d4 %over% dnase])),
+      nodnase=unlist(lapply(mL,fx2,d4[!d4 %over% dnase])))
+x1<-sum(!d4[d4 %over% dnase] %over% m)
+x2<-sum(!d4[!d4 %over% dnase] %over% m)
+x<-rbind(x,none=c(x1,x2))
+return(x)
+}
+
+ltr_overlaps(dux4_vs_input_summits)
+```
+
+# Make Pie Graph Showing MaLR overlaps
+```{r maLR_pie,eval=T}
+dux4_vs_input_summits$dnase<-ifelse(overlapsAny(dux4_vs_input_summits,dnase),"DNAse Accessible","DNAse Inaccessible")
+dux4_vs_input_summits$malr<-ifelse(overlapsAny(dux4_vs_input_summits,mL[["ERVL-MaLR"]]),"+ MaLR","- MaLR")
+dux4_vs_input_summits$category<-paste0(dux4_vs_input_summits$dnase," ",dux4_vs_input_summits$malr)
+
+pie<-as.data.frame(mcols(dux4_vs_input_summits)) %>% 
+mutate(category=factor(category,
+                       levels=c("DNAse Accessible - MaLR",
+                                "DNAse Accessible + MaLR",
+                                "DNAse Inaccessible - MaLR",
+                                "DNAse Inaccessible + MaLR" ))) %>% 
+ggplot(aes(x=factor(1),fill=category)) +geom_bar(width=1)+coord_polar(theta="y")+
+  scale_fill_manual(values=cbPalette[c(3,6,2,7)],guide = guide_legend(reverse=FALSE))+
+  xlab("") + ylab("") +
+  theme_bw() + theme(panel.grid.major=element_blank(),
+                     panel.grid.minor=element_blank())
+
+table(dux4_vs_input_summits$category)
+
+#ggsave(file="012816_pie.svg",device = svglite::svglite,plot=pie,width=8.5,height=6)
+save(pie,file=paste0(ts,"_figure5e_pie.rdata"))
+
+```
+
+
+```{r maLR_ERV,eval=F}
 #mySession = browserSession("UCSC")
 #genome(mySession) <- "hg19"
 #tbl.rmsk <- getTable(ucscTableQuery(mySession, track="rmsk",table="rmsk"))
@@ -236,7 +299,7 @@ grid.arrange(h3k27_dnase,h3k27_nodnase_maLR,h3k27_nodnase_nomaLR,ncol=1)
 ### Figure 5D
 
 # DUX4 
-```{r dux4_distribution,eval=T,fig.height=10,fig.width=6}
+```{r dux4_distribution,eval=F,fig.height=10,fig.width=6}
 dux4_dnase <-twister(dux4dox_1k_dnase,dataset=DUX4i,pad = 3500,ord=0,window=1,color="blue",ya=c(13,16))
 dux4_nodnase<-twister(dux4dox_1k_nodnase,dataset=DUX4i,pad = 3500,ord=0,window=1,color="blue",ya=c(13,16))
 save(dux4_dnase,dux4_nodnase,file=paste0(ts,"_figure5d_dux4.rdata"))
@@ -244,7 +307,7 @@ grid.arrange(dux4_dnase,dux4_nodnase,ncol=1)
 ```
 
 # H3
-```{r h3_distribution,eval=T,fig.height=10,fig.width=6}
+```{r h3_distribution,eval=F,fig.height=10,fig.width=6}
 h3_dnase <-twister(dux4dox_1k_dnase,dataset=H3,pad = 3500,ord=0,window=1,color="blue",ya=c(13,15))
 h3_nodnase<-twister(dux4dox_1k_nodnase,dataset=H3,pad = 3500,ord=0,window=1,color="blue",ya=c(13,15))
 save(h3_dnase,h3_nodnase,file=paste0(ts,"_figure5d_h3.rdata"))
@@ -252,7 +315,7 @@ grid.arrange(h3_dnase,h3_nodnase,ncol=1)
 ```
 
 # H3K27Ac
-```{r h3k27ac_distribution,eval=T,fig.height=10,fig.width=6}
+```{r h3k27ac_distribution,eval=F,fig.height=10,fig.width=6}
 h3k27ac_dnase <-twister(dux4dox_1k_dnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
 h3k27ac_nodnase<-twister(dux4dox_1k_nodnase,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16))
 save(h3k27ac_dnase,h3k27ac_nodnase,file=paste0(ts,"_figure5d_h3k27.rdata"))
@@ -260,7 +323,7 @@ grid.arrange(h3k27ac_dnase,h3k27ac_nodnase,ncol=1)
 ```
 
 # H3K4me3
-```{r h3k4me3_distribution,eval=T,fig.height=10,fig.width=6}
+```{r h3k4me3_distribution,eval=F,fig.height=10,fig.width=6}
 h3k4me3_dnase <-twister(dux4dox_1k_dnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(11,16))
 h3k4me3_nodnase<-twister(dux4dox_1k_nodnase,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(11,16))
 save(h3k4me3_dnase,h3k4me3_nodnase,file=paste0(ts,"_figure5d_h3k4.rdata"))
@@ -269,7 +332,7 @@ grid.arrange(h3k4me3_dnase,h3k4me3_nodnase,ncol=1)
 
 
 ### Analyze K27ac at non-DUX4 Sites
-```{r h27ac_2k,eval=T}
+```{r h27ac_2k,eval=F}
 length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
 length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
 length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
@@ -310,7 +373,7 @@ save(gg_violin2,file=paste0(ts,"_figure6a_violin2.rdata"))
 
 # K27Ac Tornado Plots
 
-```{r k27ac_tornado,eval=T,fig.height=14,fig.width=6}
+```{r k27ac_tornado,eval=F,fig.height=14,fig.width=6}
 temp<-k27rc_2k_noDux
 temp$ratio<-x[,2]-x[,1]
 temp<-temp[with(temp,order(-ratio))]
@@ -420,7 +483,7 @@ gg1<-res %>%
   xlab("DUX4 Induced Log2 Fold Change")+
   ggtitle("All Genes")+
   ylab("-log10(Adjusted P Value)") +
-  xlim(c(-3,7)) + ylim(c(0,260)) + 
+  xlim(c(-3,7)) + ylim(c(0,300)) + 
   theme_bw() + theme(panel.grid.major=element_blank(),
                      panel.grid.minor=element_blank())
 
@@ -469,7 +532,7 @@ gg2<-res %>%
   xlab("DUX4 Induced Log2 Fold Change")+
   ggtitle("DNAse Accesible") +
   ylab("-log10(Adjusted P Value)") +
-  xlim(c(-3,7)) + ylim(c(0,260)) + 
+  xlim(c(-3,7)) + ylim(c(0,300)) + 
   theme_bw() + theme(panel.grid.major=element_blank(),
                      panel.grid.minor=element_blank())
 
@@ -483,7 +546,7 @@ gg3<-res %>%
   xlab("DUX4 Induced Log2 Fold Change")+
   ggtitle("DNAse In-accesible") +
   ylab("-log10(Adjusted P Value)") +
-  xlim(c(-3,7)) + ylim(c(0,260)) + 
+  xlim(c(-3,7)) + ylim(c(0,300)) + 
   theme_bw() + theme(panel.grid.major=element_blank(),
                      panel.grid.minor=element_blank())
 
@@ -597,199 +660,55 @@ tg
 listGO("GO:0045596")
 ```
 
+
+#Supplemental Figure
+
+# DNAse 
+```{r dnase_Tornado,eval=F,fig.height=10,fig.width=10}
+dnaseT_dnase<-tornado(dux4dox_1k_dnase,dataset=dnaseFS,pad = 3500,ord=0,window=5,color="cyan")
+ggsave(file=paste0(ts,"_supfigure2_dnaseT_dnase.png"),plot=dnaseT_dnase,width=5,height=8)
+dnaseT_nodnase<-tornado(dux4dox_1k_nodnase,dataset=dnaseFS,pad = 3500,ord=0,window=5,color="cyan")
+ggsave(file=paste0(ts,"_supfigure2_dnaseT_nodnase.png"),plot=dnaseT_nodnase,width=5,height=8)
+grid.arrange(dnaseT_dnase,dnaseT_nodnase,ncol=2)
+```
+
+# DUX4 
+```{r dux4_Tornado,eval=F,fig.height=10,fig.width=10}
+dux4T_dnase<-tornado(dux4dox_1k_dnase,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue")
+ggsave(file=paste0(ts,"_supfigure2_dux4T_dnase.png"),plot=dux4T_dnase,width=5,height=8)
+dux4T_nodnase<-tornado(dux4dox_1k_nodnase,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue")
+ggsave(file=paste0(ts,"_supfigure2_dux4T_nodnase.png"),plot=dux4T_nodnase,width=5,height=8)
+grid.arrange(dnaseT_dnase,dnaseT_nodnase,ncol=2)
+```
+
+# H3 
+```{r h3_Tornado,eval=F,fig.height=10,fig.width=10}
+H3T_dnase<-tornado(dux4dox_1k_dnase,dataset=H3,pad = 3500,ord=0,window=5,color="darkgoldenrod2")
+ggsave(file=paste0(ts,"_supfigure2_H3_dnase.png"),plot=H3T_dnase,width=5,height=8)
+H3T_nodnase<-tornado(dux4dox_1k_nodnase,dataset=H3,pad = 3500,ord=0,window=5,color="darkgoldenrod2")
+ggsave(file=paste0(ts,"_supfigure2_H3_nodnase.png"),plot=H3T_nodnase,width=5,height=8)
+grid.arrange(H3T_dnase,H3T_nodnase,ncol=2)
+```
+
+# H3K4me3 
+```{r h3k4_Tornado,eval=F,fig.height=10,fig.width=10}
+H3K4T_dnase<-tornado(dux4dox_1k_dnase,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4")
+ggsave(file=paste0(ts,"_supfigure2_H3_dnase.png"),plot=H3K4T_dnase,width=5,height=8)
+H3K4T_nodnase<-tornado(dux4dox_1k_nodnase,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4")
+ggsave(file=paste0(ts,"_supfigure2_H3K4_nodnase.png"),plot=H3K4T_nodnase,width=5,height=8)
+grid.arrange(H3K4T_dnase,H3K4T_nodnase,ncol=2)
+```
+
+# H3K27Ac
+```{r h3k27_Tornado,eval=F,fig.height=10,fig.width=10}
+H3K27T_dnase<-tornado(dux4dox_1k_dnase,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2")
+ggsave(file=paste0(ts,"_supfigure2_H3_dnase.png"),plot=H3K27T_dnase,width=5,height=8)
+H3K27T_nodnase<-tornado(dux4dox_1k_nodnase,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2")
+ggsave(file=paste0(ts,"_supfigure2_H3K27_nodnase.png"),plot=H3K27T_nodnase,width=5,height=8)
+grid.arrange(H3K27T_dnase,H3K27T_nodnase,ncol=2)
+```
+
 ```{r sessionInfo,eval=T}
 sessionInfo()
-```
-
-################ CLEANED UP ####################
-
-
-```{r Tornado_Plots,eval=F}
-load("filesets.rdata")
-
-length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE])
-#length(temp<-dux4dox_1k[dux4dox_1k$dnase_overlap==TRUE & dux4dox_1k$score > 35])
-#temp<-sample(temp,500)
-temp<-temp[with(temp,order(-score))]
-#benchplot(tornado(temp,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
-#benchplot(tornado(temp,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
-```
-
-```{r Tornado_Plots_2,eval=F}
-#benchplot(tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
-##benchplot(tornado(temp,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
-```
-
-```{r Tornado_Plots_3,eval=F}
-benchplot(twister(temp,dataset=H3,pad = 3500,ord=0,window=1,color="darkgreen"))
-```
-
-
-```{r Tornado_Plots_4,eval=F}
-length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE ])
-#length(temp2<-dux4dox_1k[dux4dox_1k$dnase_overlap==FALSE & dux4dox_1k$score > 35])
-#temp<-sample(temp,500)
-temp2<-temp2[with(temp2,order(-score))]
-#benchplot(tornado(temp2,dataset=DUX4,pad = 3500,ord=0,window=5,color="blue"))
-#benchplot(tornado(temp2,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
-#benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
-```
-
-```{r Tornado_Plots_5,eval=F}
-#benchplot(tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
-#benchplot(tornado(temp2,dataset=p300,pad = 3500,ord=0,window=5,color="red2"))
-benchplot(twister(temp,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen"))
-```
-
-```{r Tornado_Plots_6,eval=F}
-benchplot(twister(temp2,dataset=DUX4,pad = 3500,ord=0,window=1,color="darkgreen"))
-```
-
-#Figure 5b
-```{r Tornado_Plots_65,eval=F}
-benchplot(dux4_total<-twister(dux4dox_1k,dataset=DUX4i,pad = 3500,ord=0,window=1,ya=c(12,16)))
-benchplot(h3k27ac_total<-twister(dux4dox_1k,dataset=h3k27,pad = 3500,ord=0,window=1,ya=c(12,16)))
-save(dux4_total,h3k27ac_total,file="gg_total.rdata")
-```
-
-# DUX4
-```{r Tornado_Plots_7,eval=F}
-benchplot(dux4_dnase<-twister(temp,dataset=DUX4i,pad = 3500,ord=0,window=1,ya=c(12,16)))
-benchplot(dux4_nodnase<-twister(temp2,dataset=DUX4i,pad = 3500,ord=0,window=1,ya=c(12,16)))
-#ggsave(file="121815_dux4i_dnase.svg",plot=dux4_dnase,width=8.5,height=6)
-#ggsave(file="121815_dux4i_nodnase.svg",plot=dux4_nodnase,width=8.5,height=6)
-save(dux4_dnase,dux4_nodnase,file="gg_dux4i.rdata")
-```
-
-# H3
-```{r Tornado_Plots_8,eval=F}
-benchplot(h3_dnase<-twister(temp,dataset=H3,pad = 3500,ord=0,window=1,ya=c(13,15)))
-benchplot(h3_nodnase<-twister(temp2,dataset=H3,pad = 3500,ord=0,window=1,ya=c(13,15)))
-#ggsave(file="121815_h3_dnase.svg",plot=h3_dnase,width=8.5,height=6)
-#ggsave(file="121815_h3_nodnase.svg",plot=h3_nodnase,width=8.5,height=6)
-save(h3_dnase,h3_nodnase,file="gg_h3.rdata")
-```
-
-# H3K4me3
-```{r Tornado_Plots_9,eval=F}
-benchplot(h3k4me3_dnase<-twister(temp,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16)))
-benchplot(h3k4me3_nodnase<-twister(temp2,dataset=h3k4,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16)))
-ggsave(file="010616_h3k4me3_dnase.svg",plot=h3k4me3_dnase,width=8.5,height=6)
-ggsave(file="010616_h3k4me3_nodnase.svg",plot=h3k4me3_nodnase,width=8.5,height=6)
-save(h3k4me3_dnase,h3k4me3_nodnase,file="gg_h3k4me3.rdata")
-```
-#H3K27ac
-```{r Tornado_Plots_95,eval=F}
-benchplot(h3k27ac_dnase<-twister(temp,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16)))
-benchplot(h3k27ac_nodnase<-twister(temp2,dataset=h3k27,pad = 3500,ord=0,window=1,color="blue",ya=c(12,16)))
-#ggsave(file="121815_h3k27ac_dnase.svg",plot=h3k27ac_dnase,width=8.5,height=6)
-#ggsave(file="121815_h3k27ac_nodnase.svg",plot=h3k27ac_nodnase,width=8.5,height=6)
-save(h3k27ac_dnase,h3k27ac_nodnase,file="gg_h3k27ac.rdata")
-```
-
-# H3K27ac Tornado
-```{r Tornado_Plots_10,eval=F}
-benchplot(h3k27acT_dnase<-tornado(temp,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
-benchplot(h3k27acT_nodnase<-tornado(temp2,dataset=h3k27,pad = 3500,ord=0,window=5,color="red2"))
-ggsave(file="011216_h3k27ac_Tornado_dnase.png",plot=h3k27acT_dnase,width=5,height=8)
-ggsave(file="011216_h3k27ac_Tornado_nodnase.png",plot=h3k27acT_nodnase,width=5,height=8)
-#save(h3k27acT_dnase,h3k27acT_nodnase,file="gg_h3k27acT.rdata")
-```
-
-# H3 Tornado
-```{r Tornado_Plots_102,eval=F}
-benchplot(h3T_dnase<-tornado(temp,dataset=H3,pad = 3500,ord=0,window=5,color="darkgoldenrod2"))
-benchplot(h3T_nodnase<-tornado(temp2,dataset=H3,pad = 3500,ord=0,window=5,color="darkgoldenrod2"))
-ggsave(file="011216_h3_Tornado_dnase.png",plot=h3T_dnase,width=5,height=8)
-ggsave(file="011216_h3_Tornado_nodnase.png",plot=h3T_nodnase,width=5,height=8)
-#save(h3k27acT_dnase,h3k27acT_nodnase,file="gg_h3k27acT.rdata")
-```
-
-# DNASE Tornado
-```{r Tornado_Plots_105,eval=F}
-load("dnaseFS.rdata")
-benchplot(dnaseT_dnase<-tornado(temp,dataset=dnaseFS,pad = 3500,ord=0,window=5,color="cyan"))
-benchplot(dnaseT_nodnase<-tornado(temp2,dataset=dnaseFS,pad = 3500,ord=0,window=5,color="cyan"))
-ggsave(file="011216_dnaseTornado_dnase.png",plot=dnaseT_dnase,width=5,height=8)
-ggsave(file="011216_dnaseTornado_nodnase.png",plot=dnaseT_nodnase,width=5,height=8)
-```
-
-# DUX4 Tornado
-```{r Tornado_Plots_11,eval=F}
-benchplot(dux4T_dnase<-tornado(temp,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue"))
-benchplot(dux4T_nodnase<-tornado(temp2,dataset=DUX4i,pad = 3500,ord=0,window=5,color="blue"))
-ggsave(file="122915_dux4T_Tornado_dnase.png",plot=dux4T_dnase,width=5,height=8)
-ggsave(file="122915_dux4T_Tornado_nodnase.png",plot=dux4T_nodnase,width=5,height=8)
-#save(h3k27acT_dnase,h3k27acT_nodnase,file="gg_h3k27acT.rdata")
-```
-
-# H3K4me3 Tornado
-```{r Tornado_Plots_12,eval=F}
-benchplot(h3k4me3T_dnase<-tornado(temp,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
-benchplot(h3k4me3T_nodnase<-tornado(temp2,dataset=h3k4,pad = 3500,ord=0,window=5,color="darkorange4"))
-ggsave(file="122915_h3k4me3_Tornado_dnase.png",plot=h3k4me3T_dnase,width=5,height=8)
-ggsave(file="122915_h3k4me3_Tornado_nodnase.png",plot=h3k4me3T_nodnase,width=5,height=8)
-#save(h3k4me3T_dnase,h3k4me3T_nodnase,file="gg_h3k4me3T.rdata")
-```
-
-#Analyze H3K27ac Peaks that do not overlap DUX4 sites
-```{r import_k27ac_peaks,eval=F}
-length(k27pd<-import("../chip/h3k27ac_plusdox_pe5_peaks.bed"))
-length(k27nd<-import("../chip/h3k27ac_nodox_pe5_peaks.bed"))
-length(k27pdr<-reduce(k27pd,min.gapwidth=1000))
-length(k27ndr<-reduce(k27nd,min.gapwidth=1000))
-length(k27r<-reduce(c(k27pdr,k27ndr),min.gapwidth=1))
-
-#export(k27r,"k27r.bed")
-
-#Standerdize the size
-summary(width(k27r))
-summary(width(center(k27r)+2000))
-#export(center(k27r)+2000,"k27r_4k.bed")
-```
-
-#Count reads
-```{r Count_Reads_at_K27ac_Sites,eval=F}
-(fls <- list.files("../chip", pattern=glob2rx("h3k27*hg19.bam$"),full=TRUE))
-(fls2 <- list.files("../chip", pattern=glob2rx("DUX*hg19.bam$"),full=TRUE))
-bamlst <- BamFileList(c(fls,fls2),yieldSize = 1e6)
-detectCores()
-BiocParallel::register(MulticoreParam(workers=detectCores()))
-system.time(h3k27_counts <- summarizeOverlaps(center(k27r)+2000,bamlst,mode="Union",singleEnd=TRUE,ignore.strand=TRUE))
-save(h3k27_counts,file="k27r_4k_DUX4_counts.rdata")
-```
-
-
-```{r evaluate_counts,eval=F}
-load("h3k27_counts.rdata")
-(n<-apply(assays(h3k27_counts)$counts,2,sum))
-length(gr<-rowRanges(h3k27_counts))
-gr$k27nd<-log2(assays(h3k27_counts)$counts[,1]*1e6/n[1] + 1)
-gr$k27pd<-log2(assays(h3k27_counts)$counts[,2]*1e6/n[2] + 1)
-head(gr)
-plot(gr$k27pd,gr$k27nd,cex=0.2,pch=16)
-#x<-as.matrix(mcols(gr))
-#matdensity(x)
-
-#look at subset
-length(gr_subset<-gr[gr$k27nd > 8 | gr$k27pd > 8])
-gr_subset$which_label<-wls(gr_subset)
-plot(gr_subset$k27pd,gr_subset$k27nd,cex=0.2,pch=16)
-#x<-as.matrix(mcols(gr_subset[,1:2]))
-#matdensity(x)
-
-gr_subset$ratio <- gr_subset$k27pd - gr_subset$k27nd
-gr_subset<-gr_subset[with(gr_subset,order(-ratio))]
-head(gr_subset)
-
-gr_subset[gr_subset %over% GRanges(seqnames="chr19",IRanges(start=58178303,end=58192520))]
-
-#chr11:17,728,386-17,756,401
-gr_subset[gr_subset %over% GRanges(seqnames="chr11",IRanges(start=17728386,end=17756401))]
-
-#length(gr_subset_subset<-gr_subset[abs(gr_subset$ratio)>2])
-length(gr_subset_subset<-gr_subset)
-
-length(gr_subset_subset<-gr_subset_subset[width(gr_subset_subset)<5000])
 ```
 
